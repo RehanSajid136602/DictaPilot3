@@ -1,0 +1,10 @@
+{"session":"cleaning","utterance":"um um this this is a test","expected_action":"append","expected_output":"This is a test."}
+{"session":"cleaning","utterance":"how are you","expected_action":"append","expected_output":"This is a test. How are you?"}
+{"session":"commands","utterance":"hello world","expected_action":"append","expected_output":"Hello world."}
+{"session":"commands","utterance":"scratch that","expected_action":"undo","expected_output":""}
+{"session":"commands","utterance":"clear all","expected_action":"clear","expected_output":""}
+{"session":"commands","utterance":"hello again","expected_action":"append","expected_output":"Hello again."}
+{"session":"commands","utterance":"don't include that","expected_action":"ignore","expected_output":"Hello again."}
+{"session":"replace","utterance":"we use twinker","expected_action":"append","expected_output":"We use twinker."}
+{"session":"replace","utterance":"replace twinker with PyQt","expected_action":"undo_append","expected_output":"We use PyQt."}
+{"session":"replace","utterance":"undo last sentence","expected_action":"clear","expected_output":""}

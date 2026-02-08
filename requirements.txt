@@ -1,0 +1,11 @@
+groq
+sounddevice
+soundfile
+numpy
+keyboard
+pyperclip
+python-dotenv
+pynput
+Pillow
+PySide6
+pyinstaller

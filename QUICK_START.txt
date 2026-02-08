@@ -1,0 +1,37 @@
+DictaPilot Quick Start Guide
+============================
+
+ONE-CLICK START
+---------------
+To launch DictaPilot with a single double-click, use the scripts in the portable-start folder:
+
+  portable-start/start_windows.bat    (Windows)
+  portable-start/start_linux.sh      (Linux)
+  portable-start/start_macos.command  (macOS)
+
+PORTABILITY
+-----------
+The portable-start folder can be copied to any location on your computer:
+- Desktop
+- Documents
+- Downloads
+- Any other folder
+
+Simply double-click the appropriate script for your OS to launch the app.
+
+REQUIREMENTS
+------------
+Before using the one-click start scripts:
+1. Install Python 3.10 or higher from https://www.python.org/downloads/
+2. Run the setup script for your OS:
+   - Windows: setup\setup_windows.bat
+   - Linux: setup/setup_linux.sh
+   - macOS: setup/setup_macos.command
+
+This creates the virtual environment and installs all dependencies.
+
+TROUBLESHOOTING
+---------------
+For detailed troubleshooting information, see: portable-start/README.txt
+
+For more information about DictaPilot, see: README.md
