@@ -471,7 +471,7 @@ class GUIManager:
 
         self._mode = "idle"
         self._display_text = "Ready"
-        self._bar_count = 18
+        self._bar_count = 5
         self._amplitudes = [0.0] * self._bar_count
         self._current_heights = [0.0] * self._bar_count
         self._level_env = 0.0
@@ -479,7 +479,7 @@ class GUIManager:
         self._logo_image = None
         self._logo_mtime = None
         self._last_logo_check = 0.0
-        self._width = 196
+        self._width = 85
         self._height = 72
         self._platform_name = platform.system()
         self._show_close_button = (os.getenv("FLOATING_CLOSE_BUTTON", "1").strip().lower() not in {"0", "false", "no", "off"})
@@ -778,12 +778,8 @@ class GUIManager:
         self._draw_rounded_rect(painter, 1, 1, w - 2, h - 2, "#0f1b33", 23)
         self._draw_close_button(painter)
 
-        logo_center_x = 12.0
-        logo_half_w = 0.0
-        if self._logo_image is not None and not self._logo_image.isNull():
-            logo_half_w = self._logo_image.width() / 2.0
-            logo_center_x = 10.0 + logo_half_w
-            painter.drawPixmap(int(logo_center_x - logo_half_w), int(mid_y - self._logo_image.height() / 2.0), self._logo_image)
+        # Logo removed - minimal GUI with audio bars only
+        start_x = 12.0
 
         if self._mode == "record":
             top_color = QColor("#f8fafc")
@@ -803,9 +799,8 @@ class GUIManager:
             glow_color = QColor(203, 213, 225, 56)
 
         bar_w = 5.0
-        gap = 2.8
+        gap = 4.0
         max_h = h - 16.0
-        start_x = logo_center_x + logo_half_w + 9.0
         right_pad = 32.0 if self._show_close_button else 8.0
         available_w = max(0.0, w - start_x - right_pad)
         stride = bar_w + gap
