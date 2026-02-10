@@ -6,413 +6,253 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 ![Platform: Windows | macOS | Linux](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgray.svg)
 
-**Cross-platform press-and-hold dictation with smart editing.** Hold a hotkey to record, transcribe with Groq Whisper, and paste directly into your focused text field with intelligent voice commands.
+Cross-platform press-and-hold dictation with smart editing. Hold a hotkey, speak, release, and DictaPilot transcribes and pastes into the currently focused text field.
 
-## Features
+## What You Get
 
-- **Press-and-hold recording** — Simple F9 (default) hotkey workflow
-- **Smart dictation commands** — "delete that", "clear all", "ignore", "replace X with Y"
-- **Delta paste** — Types only changes; backs up when transcript shrinks
-- **Terminal-first** — Lightweight, fast startup, no heavy UI
-- **Cross-platform** — Windows, macOS, Linux with auto backend selection
-- **Groq-powered** — Fast transcription with whisper-large-v3-turbo
+- Hold-to-record workflow (`f9` by default)
+- Smart voice commands like `delete that`, `clear all`, `ignore`, `replace X with Y`
+- Delta paste mode to update only changed text
+- Persistent transcription history with search/export CLI
+- Linux, macOS, and Windows startup scripts included
 
----
+## Current Status
 
-## About This Fork
+DictaPilot is currently terminal-first.
 
-This is a maintained fork of the original DictaPilot project by [Rohan Sharvesh](https://github.com/RohanSharvesh).
+- No full desktop GUI yet (no settings dashboard or manager app).
+- No Dory assistant integration yet.
+- No visual onboarding wizard yet.
 
-**Original repository:** https://github.com/RohanSharvesh/DictaPilot
+What exists today:
+- CLI + global hotkey workflow.
+- Optional lightweight floating status overlay and tray flow.
 
-This fork includes additional features, bug fixes, and improvements. All credit goes to the original author for the core design and architecture.
+UI and Dory-related features are planned and will be added in future releases.
 
-### Improvements in This Fork
+## 5-Minute Setup
 
-- Transcription storage with JSON persistence
-- CLI tools (`--list`, `--stats`, `--search`, `--export`)
-- Enhanced smart editor with better replace pattern handling
-- Improved LLM prompts and edge case handling
-- Better clear/ignore detection
-- Per-app context/profiles support (`app_context.py`)
-- GitHub Actions CI/CD workflows
-- Packaging scripts for Windows/macOS/Linux
-
----
-
-## Demo (10–20 sec)
-
-![DictaPilot Demo](docs/demo.gif)
-
-**[Watch video version →](docs/demo.mp4)**
-
-**Demo flow:**
-1. Hold `F9` to record
-2. Release to transcribe and paste
-3. Say `"hello world"` → text appears
-4. Say `"delete that"` → last segment removed
-5. Say `"clear all"` → transcript cleared
-
----
-
-## Why DictaPilot (vs WhisperFlow-style tools)
-
-| Feature | DictaPilot | Typical WhisperFlow Tools |
-|---------|------------|--------------------------|
-| **Spoken command handling** | Commands like "delete that" work directly — no need to type them | Often requires manual editing |
-| **Delta paste** | Only types changes; backs up when content is removed | Usually replaces entire text |
-| **Terminal-first** | Lightweight, fast start, minimal dependencies | Often ships heavy Electron/GUI apps |
-| **Config via env vars** | Simple `GROQ_API_KEY`, `HOTKEY`, etc. | May require GUI settings or config files |
-| **No cloud lock-in** | Runs locally with your Groq API key | Some tools require proprietary services |
-
-> **Disclaimer:** DictaPilot is not affiliated with WhisperFlow. Comparison is provided for user clarity and reflects typical tool differences.
-
----
-
-## Quick Start
-
-### Prerequisites
-
-- Python 3.10+
-- Groq API key ([get one here](https://console.groq.com))
-- Microphone access
-
-### Installation
+1. Clone the repo:
 
 ```bash
-# Clone and enter directory
 git clone https://github.com/RehanSajid136602/DictaPilot.git
 cd DictaPilot
-
-# Create virtual environment
-python3 -m venv venv
-source venv/bin/activate   # Linux/macOS
-# or: .\venv\Scripts\Activate.ps1  (Windows PowerShell)
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Configure API key
-cp .env.example .env
-# Edit .env and add: GROQ_API_KEY=your_key_here
 ```
 
-### Running
+2. Run your OS setup script:
+
+- Windows: `setup\setup_windows.bat`
+- Linux: `./setup/setup_linux.sh`
+- macOS: `./setup/setup_macos.command`
+
+3. Set your Groq API key:
+
+- Open `.env`
+- Set `GROQ_API_KEY=your_real_key`
+
+4. Start DictaPilot:
 
 ```bash
 python app.py
 ```
 
-Press and hold `F9` (default) to record. Release to transcribe and paste.
+5. Use it:
 
-### Desktop GUI (Windows MVP Scaffold)
+- Focus any text input field
+- Hold `F9` to record
+- Release `F9` to transcribe and paste
 
-A Tauri + React desktop app scaffold is available at `apps/dictapilot-desktop/`.
+## One-Click Start (Portable Scripts)
 
-- Desktop setup guide: `docs/desktop-gui.md`
-- Migration notes: `docs/desktop-migration-notes.md`
-- Windows QA checklist: `docs/windows-desktop-qa-checklist.md`
+If setup is already done, use:
 
-#### Run the Desktop App (Dev)
+- Windows: `portable-start/start_windows.bat`
+- Linux: `portable-start/start_linux.sh`
+- macOS: `portable-start/start_macos.command`
 
-Prerequisites:
-- Node.js 20+
-- Rust (stable toolchain)
-- Tauri CLI (`cargo install tauri-cli --version "^2"`)
-- Windows 10/11 with WebView2 runtime
+Details: `portable-start/README.txt`
 
-From the repo root:
+## Start at Login (Optional)
 
-```bash
-# terminal 1 - UI dev server
-cd apps/dictapilot-desktop/ui
-npm install
-npm run dev
-```
+Use these scripts to register auto-start and launch now:
 
-```bash
-# terminal 2 - Tauri host
-cd apps/dictapilot-desktop/src-tauri
-cargo tauri dev
-```
+- Windows: `auto_start/autostart_windows.bat`
+- Linux: `auto_start/autostart_linux.sh`
+- macOS: `auto_start/autostart_macos.command`
 
-#### Build Desktop Installer (Windows)
+Details: `auto_start/README.txt`
+
+## CLI Commands
 
 ```bash
-cd apps/dictapilot-desktop/src-tauri
-cargo tauri build
-```
-
-### Tray Mode (Optional)
-
-Run with system tray for quick access:
-
-```bash
-python app.py --tray
-```
-
-Provides:
-- Start/Stop dictation toggle
-- Open Settings
-- Quit
-
----
-
-## Transcription Storage
-
-All transcriptions are automatically saved to a JSON file for easy access and reuse.
-
-### Storage Locations
-
-| Platform | Path |
-|----------|------|
-| Linux | `~/.local/share/dictapilot/transcriptions.json` |
-| macOS | `~/.local/share/dictapilot/transcriptions.json` |
-| Windows | `%APPDATA%\DictaPilot\transcriptions.json` |
-
-### Command-Line Tools
-
-```bash
-# List recent transcriptions (default: 20)
+# List recent transcriptions
 python app.py --list
 
-# Show transcription statistics
+# View storage statistics
 python app.py --stats
 
 # Search transcriptions
-python app.py --search "hello"
+python app.py --search "meeting notes"
 
-# Export all transcriptions to a text file
+# Export transcriptions to a text file
 python app.py --export my_transcriptions.txt
 ```
 
-### Stored Data
-
-Each entry includes:
-- Timestamp (ISO format)
-- Original transcribed text
-- Processed text (after smart editing)
-- Action taken (append, replace, clear, ignore)
-- Word count
-- Unique session ID
-
-### Export Formats
-
-- **JSON**: Full data with metadata (`transcriptions.json`)
-- **Text**: Plain text for easy reuse (`--export`)
-
----
-
 ## Smart Dictation Commands
 
-| Command | Action |
-|---------|--------|
+| Spoken Command | Action |
+|---|---|
 | `delete that`, `undo`, `scratch that` | Remove last segment |
-| `clear all`, `reset`, `start over` | Clear entire transcript |
-| `ignore`, `skip`, `don't include` | Discard this utterance |
-| `hello world ignore` | Discard "hello world", keep transcript unchanged |
-| `replace X with Y` | Replace "X" with "Y" in transcript |
-
-Inline self-corrections are handled automatically (`"My name is Rehan. No, my name is Numan"` → keeps corrected clause).
-
----
+| `clear all`, `reset`, `start over` | Clear full transcript |
+| `ignore`, `skip`, `don't include` | Ignore this utterance |
+| `replace X with Y` | Replace phrase in transcript |
 
 ## Environment Variables
 
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `GROQ_API_KEY` | Yes | — | Your Groq API key |
-| `HOTKEY` | No | `f9` | Hold-to-record key |
-| `SMART_EDIT` | No | `1` | Enable smart editing (`1`/`0`) |
-| `SMART_MODE` | No | `llm` | `heuristic` or `llm` |
-| `LLM_ALWAYS_CLEAN` | No | `1` | Always clean (llm mode) |
-| `PASTE_MODE` | No | `delta` | `delta` (diff) or `full` |
-| `PASTE_BACKEND` | No | `auto` | Input backend |
-| `HOTKEY_BACKEND` | No | `auto` | Hotkey backend |
-| `GROQ_WHISPER_MODEL` | No | `whisper-large-v3-turbo` | Whisper model |
-| `GROQ_CHAT_MODEL` | No | `openai/gpt-oss-120b` | LLM cleanup model |
-| `ACTIVE_PROFILE` | No | `default` | Active profile ID from profile bundle |
-| `PROFILE_BUNDLE_PATH` | No | `~/.config/dictapilot/profile_bundle.json` | Path to website-generated profile bundle JSON |
-| `CLEANUP_STRICTNESS` | No | `balanced` | Cleanup aggressiveness guard (`conservative`, `balanced`, `aggressive`) |
-| `CONFIDENCE_THRESHOLD` | No | `0.65` | Confidence threshold used to relax aggressive cleanup on low-confidence transcripts |
-| `USER_ADAPTATION` | No | `1` | Enable adaptive user/app correction learning |
-| `ADAPTIVE_DICTIONARY_PATH` | No | `~/.config/dictapilot/adaptive_dictionary.json` | Path for learned correction memory |
-| `ADAPTIVE_MIN_COUNT` | No | `2` | Repetition count before learned replacements auto-apply |
+`GROQ_API_KEY` is the only required variable. Everything else is optional.
 
-Profile bundle format and rollout plan docs:
-- `docs/profile-ingestion-spec.md`
-- `docs/profile-website-plan.md`
+### Core
 
----
+| Variable | Default | Notes |
+|---|---|---|
+| `GROQ_API_KEY` | _(required)_ | Groq API key |
+| `HOTKEY` | `f9` | Hold-to-record key |
+| `SMART_EDIT` | `1` | Smart editing on/off (`1`/`0`) |
+| `SMART_MODE` | `llm` | `llm` or `heuristic` |
+| `LLM_ALWAYS_CLEAN` | `1` | In `llm` mode: always clean vs intent-only |
+| `GROQ_WHISPER_MODEL` | `whisper-large-v3-turbo` | Transcription model |
+| `GROQ_CHAT_MODEL` | `openai/gpt-oss-120b` | Cleanup model in `llm` mode |
 
-## Recording the Demo
+### Paste and Input Backends
 
-Create a 10–20 second demo GIF/MP4 for `docs/`:
+| Variable | Default | Notes |
+|---|---|---|
+| `PASTE_MODE` | `delta` | `delta` or `full` |
+| `PASTE_POLICY` | `final_only` | `final_only` or `live_preview` |
+| `PASTE_BACKEND` | `auto` | `auto`, `keyboard`, `pynput`, `xdotool`, `x11`, `osascript` |
+| `HOTKEY_BACKEND` | `auto` | `auto`, `keyboard`, `pynput`, `x11` |
 
-### Windows
-- **ScreenToGif** or **ShareX**
-- Record at 800–1100px width
-- Use readable terminal font (18–22px)
-- Crop tight to terminal window
+### Audio and Processing
 
-### macOS
-- **QuickTime Player** → File → New Screen Recording
-- Select area, record
-- Export as GIF via **gifski** or **CloudConvert**
+| Variable | Default | Notes |
+|---|---|---|
+| `SAMPLE_RATE` | `16000` | Recording sample rate |
+| `CHANNELS` | `1` | Number of channels |
+| `TRIM_SILENCE` | `1` | Trim silence before transcription |
+| `SILENCE_THRESHOLD` | `0.02` | Trim sensitivity |
+| `INSTANT_REFINE` | `1` | Fast first paste then refinement |
+| `DICTATION_MODE` | `accurate` | `speed`, `balanced`, `accurate` |
+| `CLEANUP_LEVEL` | `aggressive` | `basic`, `balanced`, `aggressive` |
+| `CLEANUP_STRICTNESS` | `balanced` | `conservative`, `balanced`, `aggressive` |
+| `CONFIDENCE_THRESHOLD` | `0.65` | Used by cleanup guardrails |
 
-### Linux
-- **Peek**, **Kooha**, or **OBS**
-- Record selected region
-- Export as GIF
+### Profiles and Personalization
 
-**Target specs:** 10–20 sec, ~800px width, 15-20fps, tight crop
+| Variable | Default | Notes |
+|---|---|---|
+| `ACTIVE_PROFILE` | `default` | Active profile ID |
+| `PROFILE_BUNDLE_PATH` | platform path | Custom profile bundle path |
+| `ACTIVE_APP` | _(unset)_ | Force app context |
+| `DEFAULT_TONE` | `polite` | Fallback tone |
+| `DEFAULT_LANGUAGE` | `english` | Fallback language |
+| `PERSONAL_DICTIONARY_PATH` | platform path | Custom dictionary path |
+| `SNIPPETS_PATH` | platform path | Custom snippets path |
+| `USER_ADAPTATION` | `1` | Enable adaptive correction memory |
 
----
+### Floating Overlay / Behavior
 
-## Installation (Pre-built)
+These variables tune the lightweight floating overlay and runtime behavior, not a full GUI application.
 
-### Windows
-1. Download `DictaPilot-windows-x64.zip` from releases
-2. Extract to desired folder
-3. Run `DictaPilot.exe`
-4. Set `GROQ_API_KEY` in `.env` or environment
+| Variable | Default | Notes |
+|---|---|---|
+| `RESET_TRANSCRIPT_EACH_RECORDING` | `1` | Reset transcript on each hold/release |
+| `FLOATING_WIDTH` | `148` | Floating widget width |
+| `FLOATING_HEIGHT` | `36` | Floating widget height |
+| `FLOATING_BAR_COUNT` | `5` | Number of level bars (clamped to 3-6) |
+| `FLOATING_CLOSE_BUTTON` | `1` | Show floating close button |
+| `FLOATING_THEME` | `professional_minimal` | `professional_minimal` or `high_contrast` |
+| `FLOATING_MOTION_PROFILE` | `expressive` | `expressive`, `balanced`, or `reduced` |
+| `FLOATING_GLOW_INTENSITY` | `1.0` | Glow strength multiplier (`0.0` to `1.6`) |
+| `FLOATING_BAR_RADIUS` | `1.0` | Bar roundness multiplier (`0.5` to `1.5`) |
+| `FLOATING_BORDER_ALPHA` | `72` | Floating shell border opacity (`8` to `255`) |
 
-### macOS
-1. Download `DictaPilot-macos-x64.zip` from releases
-2. Extract and move `DictaPilot.app` to `/Applications`
-3. Run from Applications or terminal
-4. Set `GROQ_API_KEY` in environment
+Profile bundle reference: `docs/profile-ingestion-spec.md`
 
-### Linux
-1. Download `DictaPilot-x86_64.AppImage`
-2. Make executable: `chmod +x DictaPilot-x86_64.AppImage`
-3. Run: `./DictaPilot-x86_64.AppImage`
-4. Set `GROQ_API_KEY` in environment
+## Storage Paths
 
----
-
-## Building from Source
-
-### Prerequisites
-
-```bash
-pip install pyinstaller
-```
-
-### Windows
-
-```powershell
-# PowerShell
-.\packaging\build_windows.ps1
-# Output: dist\DictaPilot-windows-x64.zip
-```
-
-### macOS
-
-```bash
-chmod +x packaging/build_macos.sh
-./packaging/build_macos.sh
-# Output: dist/DictaPilot-macos-x64.zip
-```
-
-### Linux
-
-```bash
-chmod +x packaging/build_linux.sh
-./packaging/build_linux.sh
-# Output: dist/DictaPilot-x86_64.AppImage
-```
-
-Or build .deb package:
-
-```bash
-./packaging/build_deb.sh
-# Output: dist/dictapilot_*.deb
-```
-
----
-
-## License
-
-MIT License - See [LICENSE](LICENSE) for full details.
-
-### You Are Free To:
-- Use this software for any purpose
-- Modify the source code
-- Distribute modified versions
-- Commercial use
-
-### Under These Conditions:
-- You must retain the original copyright notice
-- Modified versions must clearly indicate changes
-- Include this same license with any redistributions
-
----
-
-## Project Structure
-
-```
-DictaPilot/
-├── app.py                  # Main entrypoint
-├── smart_editor.py         # Smart dictation logic
-├── transcription_store.py  # Transcription storage & retrieval
-├── paste_utils.py          # Cross-platform text injection
-├── x11_backend.py          # Linux X11 input
-├── config.py               # Configuration management
-├── tray.py                 # System tray interface
-├── requirements.txt        # Python dependencies
-├── docs/                   # Demo media
-│   ├── demo.gif
-│   └── demo.mp4
-├── packaging/              # Build scripts
-│   ├── DictaPilot.spec
-│   ├── build_windows.ps1
-│   ├── build_macos.sh
-│   ├── build_linux.sh
-│   └── build_deb.sh
-├── .github/
-│   └── workflows/
-│       ├── ci.yml
-│       └── release.yml
-└── LICENSE
-```
-
----
+| Data | Linux/macOS | Windows |
+|---|---|---|
+| Transcriptions | `~/.local/share/dictapilot/transcriptions.json` | `%APPDATA%\DictaPilot\transcriptions.json` |
+| Config | `~/.config/dictapilot/config.json` | `%APPDATA%\DictaPilot\config.json` |
+| Profiles | `~/.config/dictapilot/profile_bundle.json` | `%APPDATA%\DictaPilot\profile_bundle.json` |
 
 ## Troubleshooting
 
 ### Linux
-- Run as normal user (avoid `sudo`)
-- Install `xdotool` for fallback: `sudo apt install xdotool`
-- Force backends: `HOTKEY_BACKEND=x11`, `PASTE_BACKEND=x11`
+
+- Install `xdotool` if needed: `sudo apt install xdotool`
+- If global hotkey fails, try `HOTKEY_BACKEND=x11` or `HOTKEY_BACKEND=pynput`
+- If paste fails, try `PASTE_BACKEND=x11` or `PASTE_BACKEND=xdotool`
 
 ### macOS
-- Grant **Accessibility** permissions to Terminal
-- Auto-backend: `pynput` → `keyboard`
+
+- Grant Accessibility permission to Terminal/iTerm
+- If paste/hotkey fails, test `PASTE_BACKEND=osascript`
+
+### Windows
+
+- Run terminal as normal user (not admin unless required by keyboard hook behavior)
+- If hotkey behavior is inconsistent, try `HOTKEY_BACKEND=pynput`
 
 ### General
-- Audio input errors: Check microphone permissions
-- Groq errors: Verify `GROQ_API_KEY` is valid
 
----
+- API error: check `GROQ_API_KEY`
+- No audio: confirm microphone permissions and selected input device
+- Quick health check:
+
+```bash
+python app.py --stats
+```
+
+## Roadmap Snapshot
+
+Planned milestones:
+
+- Full desktop UI for settings and profile management.
+- Dory integration and related assistant workflows.
+- Guided onboarding flow for first-time setup.
+
+Current releases remain focused on stable terminal-first dictation.
+
+## Build Packages
+
+```bash
+# Linux AppImage
+./packaging/build_linux.sh
+
+# Linux .deb
+./packaging/build_deb.sh
+
+# macOS zip
+./packaging/build_macos.sh
+
+# Windows zip (PowerShell)
+.\packaging\build_windows.ps1
+```
 
 ## Testing
 
 ```bash
-pip install pytest
 pytest -q tests/test_smart_editor.py
-
-# Run corpus-based quality checks for smart editor
 python3 scripts/eval_smart_editor.py
 ```
 
----
+## About This Fork
+
+This is a maintained fork of DictaPilot by [Rohan Sharvesh](https://github.com/RohanSharvesh), with additional reliability and usability improvements by Rehan.
+
+Original project: https://github.com/rohansharvesh/WhisperGroq
 
 ## License
 
-MIT License. See [LICENSE](LICENSE) for details.
-
----
-
-**Part of the BridgeMind Vibeathon**  
-**Developer:** Rehan
+MIT. See `LICENSE`.

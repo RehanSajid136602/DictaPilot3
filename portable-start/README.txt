@@ -1,68 +1,74 @@
-DictaPilot One-Click Start Scripts
-===================================
+DictaPilot Portable Start Scripts
+=================================
 
-This folder contains portable one-click start scripts for DictaPilot that can be copied
-to any location on your computer. Simply double-click the appropriate script for your
-operating system to launch the app.
+These scripts let you start DictaPilot by double-clicking, after setup is complete.
+
+FILES
+-----
+- `start_windows.bat`
+- `start_linux.sh`
+- `start_macos.command`
+
+HOW THEY WORK
+-------------
+Each script:
+1. Detects the script location
+2. Treats the parent directory as project root
+3. Verifies Python, `venv`, and `app.py`
+4. Activates `venv`
+5. Runs `python app.py`
 
 REQUIREMENTS
 ------------
-Before using these scripts, ensure you have:
-1. Python 3.10 or higher installed
-2. Run the appropriate setup script for your OS:
-   - Windows: setup\setup_windows.bat
-   - Linux: setup/setup_linux.sh
-   - macOS: setup/setup_macos.command
-
-This will create the virtual environment and install all required dependencies.
+Before using these scripts:
+1. Install Python 3.10+
+2. Run one setup script once:
+   - Windows: `setup\setup_windows.bat`
+   - Linux: `./setup/setup_linux.sh`
+   - macOS: `./setup/setup_macos.command`
+3. Add `GROQ_API_KEY` in `.env`
 
 USAGE
 -----
-Choose the script for your operating system:
-
 Windows:
-  Double-click: start_windows.bat
+- Double-click `start_windows.bat`
 
 Linux:
-  Double-click: start_linux.sh
-  (Make sure the file is executable: chmod +x start_linux.sh)
+- Make executable once: `chmod +x start_linux.sh`
+- Double-click or run `./start_linux.sh`
 
 macOS:
-  Double-click: start_macos.command
+- Double-click `start_macos.command`
+- If blocked by Gatekeeper, allow it in Privacy & Security, then run again
 
-PORTABILITY
------------
-These scripts are designed to be portable. You can copy this entire folder to any
-location on your computer (Desktop, Documents, Downloads, etc.) and they will work
-as long as the folder structure is maintained:
+IMPORTANT FOLDER LAYOUT
+-----------------------
+Do not move these files out of the repo structure. They expect:
 
-  Your Location/
+  DictaPilot/
+  ├── app.py
+  ├── venv/
   └── portable-start/
       ├── start_windows.bat
       ├── start_linux.sh
       ├── start_macos.command
       └── README.txt
 
-The scripts automatically detect their location and find the project root directory.
-
 TROUBLESHOOTING
 ---------------
-If you encounter errors:
+1. Python not found:
+   - Install from https://www.python.org/downloads/
 
-1. "Python 3.10+ not found"
-   - Install Python from https://www.python.org/downloads/
-   - Make sure to add Python to your system PATH
+2. Virtual environment missing:
+   - Run setup script for your OS
+   - Confirm `venv` exists in project root
 
-2. "Virtual environment not found"
-   - Run the setup script for your OS first
-   - Ensure the venv folder exists in the project root
+3. `app.py` not found:
+   - Confirm `portable-start` is inside the DictaPilot repo
 
-3. "app.py not found"
-   - Ensure this portable-start folder is in the correct location
-   - It should be a subfolder of the DictaPilot project directory
+4. Linux/macOS script does not launch:
+   - Run `chmod +x start_linux.sh start_macos.command`
 
-4. Script won't run on Linux/macOS
-   - Make the script executable: chmod +x start_linux.sh or chmod +x start_macos.command
-   - On macOS, you may need to allow the script in Security & Privacy settings
-
-For more information, visit the DictaPilot project repository.
+See also:
+- Root guide: `README.md`
+- Quick setup: `QUICK_START.txt`

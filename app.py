@@ -112,10 +112,301 @@ def _env_int(name: str, default: int) -> int:
         return default
 
 
+def _env_float(name: str, default: float, minimum: float | None = None, maximum: float | None = None) -> float:
+    try:
+        value = float(os.getenv(name, str(default)).strip())
+    except Exception:
+        value = float(default)
+    if minimum is not None:
+        value = max(float(minimum), value)
+    if maximum is not None:
+        value = min(float(maximum), value)
+    return value
+
+
 SR = _env_int("SAMPLE_RATE", 16000)
 CHANNELS = _env_int("CHANNELS", 1)
 TRIM_SILENCE = _env_flag("TRIM_SILENCE", "1")
 SILENCE_THRESHOLD = float(os.getenv("SILENCE_THRESHOLD", "0.02"))
+
+FLOATING_THEME = os.getenv("FLOATING_THEME", "professional_minimal").strip().lower()
+FLOATING_MOTION_PROFILE = os.getenv("FLOATING_MOTION_PROFILE", "expressive").strip().lower()
+FLOATING_GLOW_INTENSITY = _env_float("FLOATING_GLOW_INTENSITY", 1.0, 0.0, 1.6)
+FLOATING_BAR_RADIUS = _env_float("FLOATING_BAR_RADIUS", 1.0, 0.5, 1.5)
+FLOATING_BORDER_ALPHA = int(_env_float("FLOATING_BORDER_ALPHA", 72.0, 8.0, 255.0))
+FLOATING_WAVE_DEBUG = _env_flag("FLOATING_WAVE_DEBUG", "0")
+
+_VISUAL_STATE_BY_MODE = {
+    "record": "record",
+    "recording": "record",
+    "processing": "processing",
+    "transcribing": "processing",
+    "done": "done",
+    "complete": "done",
+    "idle": "idle",
+}
+
+_FLOATING_THEME_PRESETS = {
+    "professional_minimal": {
+        "shell_outer": "#0b1324",
+        "shell_inner": "#111d35",
+        "shell_border": "#94a3b8",
+        "shell_highlight": "#f8fafc",
+        "close_idle": "#dc2626",
+        "close_hover": "#ef4444",
+        "close_pressed": "#991b1b",
+        "close_halo": (255, 255, 255, 26),
+        "close_halo_active": (255, 255, 255, 52),
+        "states": {
+            "record": {
+                "top": "#bbf7d0",
+                "mid": "#22c55e",
+                "bottom": "#15803d",
+                "glow": (34, 197, 94, 104),
+            },
+            "processing": {
+                "top": "#fde68a",
+                "mid": "#f59e0b",
+                "bottom": "#b45309",
+                "glow": (245, 158, 11, 88),
+            },
+            "done": {
+                "top": "#86efac",
+                "mid": "#22c55e",
+                "bottom": "#166534",
+                "glow": (34, 197, 94, 84),
+            },
+            "idle": {
+                "top": "#cbd5e1",
+                "mid": "#94a3b8",
+                "bottom": "#475569",
+                "glow": (148, 163, 184, 62),
+            },
+        },
+    },
+    "high_contrast": {
+        "shell_outer": "#090f1f",
+        "shell_inner": "#0b1428",
+        "shell_border": "#e2e8f0",
+        "shell_highlight": "#ffffff",
+        "close_idle": "#ef4444",
+        "close_hover": "#f87171",
+        "close_pressed": "#b91c1c",
+        "close_halo": (255, 255, 255, 32),
+        "close_halo_active": (255, 255, 255, 64),
+        "states": {
+            "record": {
+                "top": "#dcfce7",
+                "mid": "#22c55e",
+                "bottom": "#166534",
+                "glow": (34, 197, 94, 112),
+            },
+            "processing": {
+                "top": "#fef08a",
+                "mid": "#facc15",
+                "bottom": "#ca8a04",
+                "glow": (250, 204, 21, 96),
+            },
+            "done": {
+                "top": "#bbf7d0",
+                "mid": "#22c55e",
+                "bottom": "#15803d",
+                "glow": (34, 197, 94, 90),
+            },
+            "idle": {
+                "top": "#e2e8f0",
+                "mid": "#cbd5e1",
+                "bottom": "#64748b",
+                "glow": (203, 213, 225, 68),
+            },
+        },
+    },
+}
+
+_MOTION_PROFILE_PRESETS = {
+    "expressive": {
+        "rise": 0.82,
+        "decay": 0.20,
+        "env_keep": 0.68,
+        "env_new": 0.32,
+        "center_drop": 0.30,
+        "record_local_mix": 0.72,
+        "record_local_gamma": 0.44,
+        "record_base": 0.92,
+        "record_wave": 0.18,
+        "record_freq": 11.1,
+        "record_phase": 0.68,
+        "record_floor": 0.08,
+        "processing_floor": 0.21,
+        "processing_wave": 0.11,
+        "processing_freq": 4.5,
+        "processing_phase": 0.42,
+        "done_floor": 0.16,
+        "done_wave": 0.08,
+        "done_freq": 3.2,
+        "done_phase": 0.40,
+        "idle_floor": 0.06,
+        "idle_wave": 0.028,
+        "idle_freq": 2.1,
+        "idle_phase": 0.48,
+    },
+    "balanced": {
+        "rise": 0.74,
+        "decay": 0.19,
+        "env_keep": 0.72,
+        "env_new": 0.28,
+        "center_drop": 0.32,
+        "record_local_mix": 0.68,
+        "record_local_gamma": 0.48,
+        "record_base": 0.90,
+        "record_wave": 0.15,
+        "record_freq": 9.5,
+        "record_phase": 0.60,
+        "record_floor": 0.08,
+        "processing_floor": 0.20,
+        "processing_wave": 0.095,
+        "processing_freq": 4.0,
+        "processing_phase": 0.40,
+        "done_floor": 0.155,
+        "done_wave": 0.065,
+        "done_freq": 2.9,
+        "done_phase": 0.38,
+        "idle_floor": 0.06,
+        "idle_wave": 0.022,
+        "idle_freq": 1.8,
+        "idle_phase": 0.46,
+    },
+    "reduced": {
+        "rise": 0.60,
+        "decay": 0.15,
+        "env_keep": 0.79,
+        "env_new": 0.21,
+        "center_drop": 0.36,
+        "record_local_mix": 0.60,
+        "record_local_gamma": 0.58,
+        "record_base": 0.88,
+        "record_wave": 0.10,
+        "record_freq": 7.2,
+        "record_phase": 0.56,
+        "record_floor": 0.07,
+        "processing_floor": 0.18,
+        "processing_wave": 0.065,
+        "processing_freq": 3.1,
+        "processing_phase": 0.38,
+        "done_floor": 0.14,
+        "done_wave": 0.045,
+        "done_freq": 2.4,
+        "done_phase": 0.34,
+        "idle_floor": 0.055,
+        "idle_wave": 0.012,
+        "idle_freq": 1.35,
+        "idle_phase": 0.44,
+    },
+}
+
+if FLOATING_THEME not in _FLOATING_THEME_PRESETS:
+    FLOATING_THEME = "professional_minimal"
+if FLOATING_MOTION_PROFILE not in _MOTION_PROFILE_PRESETS:
+    FLOATING_MOTION_PROFILE = "expressive"
+
+
+def _clamp(value: float, lower: float, upper: float) -> float:
+    return max(lower, min(upper, value))
+
+
+def _resolve_visual_state(mode: str) -> str:
+    return _VISUAL_STATE_BY_MODE.get((mode or "").strip().lower(), "idle")
+
+
+def _resolve_theme(theme_name: str) -> dict:
+    return _FLOATING_THEME_PRESETS.get(theme_name, _FLOATING_THEME_PRESETS["professional_minimal"])
+
+
+def _resolve_motion_profile(profile_name: str) -> dict:
+    return _MOTION_PROFILE_PRESETS.get(profile_name, _MOTION_PROFILE_PRESETS["expressive"])
+
+
+def _compute_bar_target(
+    mode: str,
+    bar_idx: int,
+    bar_count: int,
+    amplitudes: list[float],
+    level_peak: float,
+    expressive_level: float,
+    now: float,
+    motion: dict,
+) -> float:
+    half = max(1.0, (bar_count - 1) / 2.0)
+    center_bias = 1.16 - (abs(bar_idx - half) / half) * motion["center_drop"]
+    visual_state = _resolve_visual_state(mode)
+
+    if visual_state == "record":
+        amp_idx = min(bar_idx, len(amplitudes) - 1)
+        local = min(1.0, amplitudes[amp_idx] / max(0.10, level_peak))
+        local_drive = local ** motion["record_local_gamma"]
+        rhythm = motion["record_base"] + motion["record_wave"] * np.sin(now * motion["record_freq"] + bar_idx * motion["record_phase"])
+        drive = (motion["record_local_mix"] * local_drive) + ((1.0 - motion["record_local_mix"]) * expressive_level)
+        target = motion["record_floor"] + (drive * center_bias * rhythm)
+    elif visual_state == "processing":
+        target = motion["processing_floor"] + (np.sin(now * motion["processing_freq"] + bar_idx * motion["processing_phase"]) + 1.0) * motion["processing_wave"]
+    elif visual_state == "done":
+        target = motion["done_floor"] + (np.sin(now * motion["done_freq"] + bar_idx * motion["done_phase"]) + 1.0) * motion["done_wave"]
+    else:
+        target = motion["idle_floor"] + (np.sin(now * motion["idle_freq"] + bar_idx * motion["idle_phase"]) + 1.0) * motion["idle_wave"]
+    return _clamp(target, 0.0, 1.0)
+
+
+def _build_waveform_points(
+    current_heights: list[float],
+    bar_count: int,
+    mid_x: float,
+    mid_y: float,
+    icon_w: float,
+    icon_h: float,
+    now: float,
+    is_recording: bool,
+) -> list[tuple[float, float]]:
+    if bar_count <= 0:
+        return []
+
+    heights = list(current_heights or [])
+    if not heights:
+        heights = [0.0] * max(1, bar_count)
+
+    if len(heights) < bar_count:
+        heights.extend([heights[-1]] * (bar_count - len(heights)))
+    elif len(heights) > bar_count:
+        heights = heights[:bar_count]
+
+    sample_count = 33
+    center_idx = (sample_count - 1) / 2.0
+    span_w = icon_w * 0.92
+    step_x = span_w / max(1, sample_count - 1)
+    start_x = mid_x - (span_w / 2.0)
+    min_y = mid_y - icon_h * 0.46
+    max_y = mid_y + icon_h * 0.46
+    energy_floor = 0.28 if is_recording else 0.22
+    base_speed = 8.1 if is_recording else 6.7
+    excursion = icon_h * (0.43 if is_recording else 0.39)
+    points = []
+
+    for i in range(sample_count):
+        sample_pos = i * max(1, bar_count - 1) / max(1, sample_count - 1)
+        left_idx = int(sample_pos)
+        right_idx = min(bar_count - 1, left_idx + 1)
+        blend = sample_pos - left_idx
+        amp = (heights[left_idx] * (1.0 - blend)) + (heights[right_idx] * blend)
+
+        edge = (np.cos(((i - center_idx) / center_idx) * np.pi) * 0.5 + 0.5) ** 0.64
+        carrier = np.sin(now * base_speed + i * 0.62)
+        texture = np.sin(now * 3.8 + i * 0.31) * 0.14
+        drive = _clamp(max(amp, energy_floor), 0.0, 1.0)
+        strength = _clamp((0.30 + drive * 0.88) * edge + (0.16 if is_recording else 0.13), 0.30, 1.0)
+        y = mid_y + (carrier + texture) * (excursion * strength)
+        x = start_x + i * step_x
+        points.append((x, _clamp(y, min_y, max_y)))
+
+    return points
 
 
 def _hotkey_token_for_pynput(hotkey: str, pynput_keyboard):
@@ -419,6 +710,7 @@ class _QtFloatingWindow(QWidget):
         super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event):
+        self._manager._set_window_hover(True)
         hovering_close = self._manager._point_in_close_button(event.position())
         self._manager._set_close_button_hover(hovering_close)
 
@@ -450,8 +742,13 @@ class _QtFloatingWindow(QWidget):
     def leaveEvent(self, event):
         if not self._close_pressed:
             self._manager._set_close_button_pressed(False)
+        self._manager._set_window_hover(False)
         self._manager._set_close_button_hover(False)
         super().leaveEvent(event)
+
+    def enterEvent(self, event):
+        self._manager._set_window_hover(True)
+        super().enterEvent(event)
 
     def paintEvent(self, event):
         self._manager._paint_window(self)
@@ -471,7 +768,17 @@ class GUIManager:
 
         self._mode = "idle"
         self._display_text = "Ready"
-        self._bar_count = 5
+        self._full_width = max(120, _env_int("FLOATING_WIDTH", 148))
+        self._full_height = max(34, _env_int("FLOATING_HEIGHT", 36))
+        self._idle_scale = 0.50
+        self._window_scale = 1.0
+        self._target_window_scale = 1.0
+        self._scale_smoothing = 0.34
+        self._hover_scale = 1.02
+        self._window_hover = False
+        self._width = self._full_width
+        self._height = self._full_height
+        self._bar_count = max(3, min(6, _env_int("FLOATING_BAR_COUNT", 5)))
         self._amplitudes = [0.0] * self._bar_count
         self._current_heights = [0.0] * self._bar_count
         self._level_env = 0.0
@@ -479,13 +786,20 @@ class GUIManager:
         self._logo_image = None
         self._logo_mtime = None
         self._last_logo_check = 0.0
-        self._width = 85
-        self._height = 72
         self._platform_name = platform.system()
-        self._show_close_button = (os.getenv("FLOATING_CLOSE_BUTTON", "1").strip().lower() not in {"0", "false", "no", "off"})
+        self._show_close_button = (os.getenv("FLOATING_CLOSE_BUTTON", "0").strip().lower() not in {"0", "false", "no", "off"})
         self._close_button_hover = False
         self._close_button_pressed = False
         self._on_close_requested = on_close_requested
+        self._theme_name = FLOATING_THEME
+        self._theme = _resolve_theme(self._theme_name)
+        self._motion_profile = FLOATING_MOTION_PROFILE
+        self._motion = _resolve_motion_profile(self._motion_profile)
+        self._glow_intensity = FLOATING_GLOW_INTENSITY
+        self._bar_radius = FLOATING_BAR_RADIUS
+        self._border_alpha = FLOATING_BORDER_ALPHA
+        self._wave_debug = FLOATING_WAVE_DEBUG
+        self._last_wave_debug_log = 0.0
 
         self._window = _QtFloatingWindow(self)
         self._setup_window()
@@ -499,24 +813,69 @@ class GUIManager:
         return Path(__file__).resolve().parent / "public" / "asset" / "logo.png"
 
     def _setup_window(self):
-        self._window.setFixedSize(self._width, self._height)
+        initial_scale = 1.0 if _resolve_visual_state(self._mode) == "record" else self._idle_scale
+        self._target_window_scale = initial_scale
+        self._apply_window_scale(initial_scale, keep_center=False)
         screen = QGuiApplication.primaryScreen()
         if screen is not None:
             geometry = screen.availableGeometry()
             x = geometry.x() + (geometry.width() - self._width) // 2
-            y = geometry.y() + 26
+            y = geometry.y() + geometry.height() - self._height - 26
             self._window.move(x, y)
         self._window.show()
+
+    def _apply_window_scale(self, scale: float, keep_center: bool = True):
+        scale = _clamp(float(scale), 0.35, 1.08)
+        target_w = max(72, int(round(self._full_width * scale)))
+        target_h = max(18, int(round(self._full_height * scale)))
+
+        if target_w == self._width and target_h == self._height and abs(scale - self._window_scale) < 1e-6:
+            return
+
+        old_x = old_y = old_w = old_h = 0
+        if keep_center:
+            old_x = self._window.x()
+            old_y = self._window.y()
+            old_w = self._window.width()
+            old_h = self._window.height()
+
+        self._window_scale = scale
+        self._width = target_w
+        self._height = target_h
+        self._window.setFixedSize(self._width, self._height)
+
+        if keep_center and old_w > 0 and old_h > 0:
+            center_x = old_x + (old_w // 2)
+            center_y = old_y + (old_h // 2)
+            new_x = center_x - (self._width // 2)
+            new_y = center_y - (self._height // 2)
+            self._window.move(new_x, new_y)
+
+    def _tick_window_scale(self):
+        target = _clamp(float(self._target_window_scale), 0.35, 1.08)
+        current = float(self._window_scale)
+        delta = target - current
+        if abs(delta) < 0.004:
+            next_scale = target
+        else:
+            next_scale = current + (delta * self._scale_smoothing)
+        self._apply_window_scale(next_scale)
 
     def set_close_callback(self, callback):
         self._on_close_requested = callback
 
+    def _set_window_hover(self, hovered: bool):
+        hovered = bool(hovered)
+        if hovered != self._window_hover:
+            self._window_hover = hovered
+            self._window.update()
+
     def _close_button_rect(self) -> QRectF:
         if not self._show_close_button:
             return QRectF(0.0, 0.0, 0.0, 0.0)
-        size = 16.0
+        size = max(12.0, min(15.0, self._height * 0.28))
         margin_x = 8.0
-        margin_y = 6.0
+        margin_y = (self._height - size) / 2.0
         x = self._width - margin_x - size
         return QRectF(float(x), float(margin_y), float(size), float(size))
 
@@ -663,48 +1022,53 @@ class GUIManager:
         except queue.Empty:
             pass
 
+        visual_state = _resolve_visual_state(self._mode)
+        is_recording = (visual_state == "record")
+
         try:
             while True:
                 amp = float(self._audio_queue.get_nowait())
+                if not is_recording:
+                    continue
                 amp = max(0.0, min(1.0, amp))
                 self._amplitudes.pop(0)
                 self._amplitudes.append(amp)
-                self._level_env = (self._level_env * 0.72) + (amp * 0.28)
+                self._level_env = (self._level_env * self._motion["env_keep"]) + (amp * self._motion["env_new"])
         except queue.Empty:
             pass
         except Exception:
             pass
 
-        decay = 0.24
-        rise = 0.82
-        self._level_peak = max(self._level_peak * 0.985, self._level_env, 0.10)
-        scaled_level = min(1.0, self._level_env / max(0.12, self._level_peak))
-        expressive_level = scaled_level ** 0.55
-        half = max(1, (self._bar_count - 1) / 2)
+        if is_recording:
+            self._level_peak = max(self._level_peak * 0.992, self._level_env, 0.09)
+        else:
+            self._level_env *= 0.70
+            self._level_peak = max(0.09, self._level_peak * 0.96)
 
+        base_scale = 1.0 if visual_state in {"record", "processing"} else self._idle_scale
+        if self._window_hover:
+            base_scale *= self._hover_scale
+        self._target_window_scale = base_scale
+        self._tick_window_scale()
+
+        half = max(1.0, (self._bar_count - 1) / 2.0)
         for i in range(self._bar_count):
-            center_bias = 1.2 - (abs(i - half) / half) * 0.4
-            if self._mode == "record":
-                amp_idx = min(i, len(self._amplitudes) - 1)
-                local = min(1.0, self._amplitudes[amp_idx] / max(0.12, self._level_peak))
-                local_drive = local ** 0.50
-                rhythm = 0.86 + 0.22 * np.sin(time.time() * 11.0 + i * 0.9)
-                drive = (0.62 * local_drive) + (0.38 * expressive_level)
-                target = min(1.0, 0.05 + drive * center_bias * rhythm)
-            elif self._mode == "processing":
-                target = 0.18 + (np.sin(time.time() * 4.5 + i * 0.45) + 1.0) * 0.12
-            elif self._mode == "done":
-                target = 0.16 + (np.sin(time.time() * 3.2 + i * 0.45) + 1.0) * 0.09
-            elif self._mode == "idle":
-                target = 0.10 + (np.sin(time.time() * 2.4 + i * 0.5) + 1.0) * 0.06
+            if is_recording:
+                local = self._amplitudes[i] / max(0.10, self._level_peak)
+                local = _clamp(local, 0.0, 1.0)
+                center_bias = 1.14 - (abs(i - half) / half) * 0.26
+                strength = (local ** 0.58) * center_bias
+                target = _clamp(0.06 + (strength * 0.90), 0.0, 1.0)
             else:
-                target = 0.10
+                target = 0.0
 
             diff = target - self._current_heights[i]
             if diff > 0:
-                self._current_heights[i] += diff * rise
+                self._current_heights[i] += diff * self._motion["rise"]
             else:
+                decay = 0.44 if not is_recording else self._motion["decay"]
                 self._current_heights[i] += diff * decay
+            self._current_heights[i] = max(0.0, min(1.0, self._current_heights[i]))
 
         self._window.update()
 
@@ -715,28 +1079,23 @@ class GUIManager:
         path.addRoundedRect(rect, radius, radius)
         painter.fillPath(path, QColor(color))
 
-    def _draw_capsule(self, painter, cx, cy, width, height):
-        width = max(2.0, float(width))
-        height = max(width + 1.0, float(height))
-        rect = QRectF(cx - width / 2.0, cy - height / 2.0, width, height)
-        painter.drawRoundedRect(rect, width / 2.0, width / 2.0)
-
     def _draw_close_button(self, painter):
         if not self._show_close_button:
             return
 
         rect = self._close_button_rect()
-        halo = QColor(255, 255, 255, 44 if (self._close_button_hover or self._close_button_pressed) else 24)
+        halo_rgba = self._theme["close_halo_active"] if (self._close_button_hover or self._close_button_pressed) else self._theme["close_halo"]
+        halo = QColor(*halo_rgba)
         painter.setPen(Qt.NoPen)
         painter.setBrush(halo)
         painter.drawRoundedRect(rect.adjusted(-1.2, -1.2, 1.2, 1.2), 5.2, 5.2)
 
         if self._close_button_pressed:
-            fill = QColor("#991b1b")
+            fill = QColor(self._theme["close_pressed"])
         elif self._close_button_hover:
-            fill = QColor("#ef4444")
+            fill = QColor(self._theme["close_hover"])
         else:
-            fill = QColor("#dc2626")
+            fill = QColor(self._theme["close_idle"])
 
         border = QColor("#ffffff")
         pen = painter.pen()
@@ -765,6 +1124,154 @@ class GUIManager:
         )
         painter.setPen(Qt.NoPen)
 
+    def _paint_shell(self, painter, w: float, h: float, outer_radius: float, inner_radius: float):
+        visual_state = _resolve_visual_state(self._mode)
+        is_recording = (visual_state == "record")
+        is_hovered = self._window_hover
+
+        shadow_alpha = 44 + (12 if is_hovered else 0) + (10 if is_recording else 0)
+        shadow_rect = QRectF(2.0, 3.0, max(0.0, w - 4.0), max(0.0, h - 5.0))
+        painter.setPen(Qt.NoPen)
+        painter.setBrush(QColor(0, 0, 0, int(_clamp(shadow_alpha, 0.0, 120.0))))
+        painter.drawRoundedRect(shadow_rect, outer_radius, outer_radius)
+
+        fill = QColor("#121212" if is_hovered else "#0f0f10")
+        if is_recording:
+            fill = QColor("#101311")
+        shell_rect = QRectF(1.0, 1.0, max(0.0, w - 2.0), max(0.0, h - 2.0))
+        painter.setBrush(fill)
+        painter.setPen(Qt.NoPen)
+        painter.drawRoundedRect(shell_rect, inner_radius, inner_radius)
+
+        border_width = 2.0 if is_recording else 1.75
+        border_alpha = 245 if is_hovered else 228
+        border_inset = border_width / 2.0 + 0.55
+        border_rect = QRectF(
+            border_inset,
+            border_inset,
+            max(0.0, w - border_inset * 2.0),
+            max(0.0, h - border_inset * 2.0),
+        )
+
+        if is_recording:
+            glow_pen = painter.pen()
+            glow_pen.setColor(QColor(255, 255, 255, 48))
+            glow_pen.setWidthF(border_width + 1.2)
+            painter.setPen(glow_pen)
+            painter.setBrush(Qt.NoBrush)
+            painter.drawRoundedRect(border_rect, inner_radius, inner_radius)
+
+        border_pen = painter.pen()
+        border_pen.setColor(QColor(255, 255, 255, border_alpha))
+        border_pen.setWidthF(border_width)
+        painter.setPen(border_pen)
+        painter.setBrush(Qt.NoBrush)
+        painter.drawRoundedRect(border_rect, inner_radius, inner_radius)
+        painter.setPen(Qt.NoPen)
+
+    def _state_palette(self) -> dict:
+        state = _resolve_visual_state(self._mode)
+        states = self._theme["states"]
+        return states.get(state, states["idle"])
+
+    def _paint_bars(self, painter, w: float, h: float):
+        visual_state = _resolve_visual_state(self._mode)
+        if visual_state != "record":
+            return
+
+        now = time.time()
+
+        right_pad = 30.0 if self._show_close_button else 0.0
+        draw_w = max(24.0, w - right_pad)
+        mid_x = draw_w / 2.0
+        mid_y = h / 2.0
+        icon_w = max(34.0, draw_w * 0.74)
+        icon_h = max(12.0, min(18.0, h * 0.44))
+        badge_rect = QRectF(mid_x - icon_w / 2.0, mid_y - icon_h / 2.0, icon_w, icon_h)
+
+        badge_pen = painter.pen()
+        badge_pen.setColor(QColor(255, 255, 255, 238 if self._window_hover else 226))
+        badge_pen.setWidthF(max(1.2, min(1.45, h * 0.042)))
+        painter.setPen(badge_pen)
+        painter.setBrush(Qt.NoBrush)
+        painter.drawRoundedRect(badge_rect, icon_h / 2.0, icon_h / 2.0)
+
+        painter.setPen(Qt.NoPen)
+        painter.setBrush(QColor(255, 255, 255, 6))
+        painter.drawRoundedRect(badge_rect.adjusted(1.2, 1.2, -1.2, -1.2), icon_h / 2.2, icon_h / 2.2)
+        painter.setBrush(Qt.NoBrush)
+
+        if self._wave_debug:
+            debug_pen = painter.pen()
+            debug_pen.setColor(QColor(100, 200, 255, 160))
+            debug_pen.setWidthF(1.0)
+            painter.setPen(debug_pen)
+            painter.drawRoundedRect(badge_rect.adjusted(0.6, 0.6, -0.6, -0.6), icon_h / 2.1, icon_h / 2.1)
+            painter.setPen(Qt.NoPen)
+
+        heights_for_render = list(self._current_heights[: self._bar_count])
+        if len(heights_for_render) < self._bar_count:
+            heights_for_render.extend([0.0] * (self._bar_count - len(heights_for_render)))
+        bar_count = 17
+        center_idx = (bar_count - 1) / 2.0
+        span_w = icon_w * 0.66
+        step_x = span_w / max(1, bar_count - 1)
+        start_x = mid_x - (span_w / 2.0)
+        min_bar_h = icon_h * 0.22
+        max_bar_h = icon_h * 0.74
+        base_floor = 0.16
+        bar_w = max(1.4, min(2.2, step_x * 0.56))
+        bar_radius = max(0.9, min(1.8, bar_w * 0.8))
+
+        bar_values = []
+        for i in range(bar_count):
+            sample_pos = i * max(1, self._bar_count - 1) / max(1, bar_count - 1)
+            left_idx = int(sample_pos)
+            right_idx = min(self._bar_count - 1, left_idx + 1)
+            blend = sample_pos - left_idx
+            level = (heights_for_render[left_idx] * (1.0 - blend)) + (heights_for_render[right_idx] * blend)
+
+            center_dist = abs(i - center_idx) / max(1.0, center_idx)
+            arch = 1.0 - (center_dist ** 1.15) * 0.27
+            strength = _clamp(base_floor + ((level ** 0.62) * 0.92), 0.0, 1.0)
+            bar_h = min_bar_h + ((max_bar_h - min_bar_h) * strength * arch)
+            x = start_x + (i * step_x)
+            bar_values.append((x, _clamp(bar_h, min_bar_h, max_bar_h)))
+
+        glow_alpha = int(_clamp((148.0 * self._glow_intensity) + 48.0, 90.0, 225.0))
+        painter.setPen(Qt.NoPen)
+        painter.setBrush(QColor(255, 255, 255, glow_alpha))
+        for x, bar_h in bar_values:
+            glow_rect = QRectF(
+                float(x - (bar_w * 0.9)),
+                float(mid_y - (bar_h / 2.0) - 0.8),
+                float(bar_w * 1.8),
+                float(bar_h + 1.6),
+            )
+            painter.drawRoundedRect(glow_rect, bar_radius + 0.7, bar_radius + 0.7)
+
+        painter.setBrush(QColor(255, 255, 255, 252))
+        for x, bar_h in bar_values:
+            bar_rect = QRectF(
+                float(x - (bar_w / 2.0)),
+                float(mid_y - (bar_h / 2.0)),
+                float(bar_w),
+                float(bar_h),
+            )
+            painter.drawRoundedRect(bar_rect, bar_radius, bar_radius)
+
+        if self._wave_debug and (now - self._last_wave_debug_log) > 0.35:
+            bars_only = [bar_h for _, bar_h in bar_values]
+            wave_span = (max(bars_only) - min(bars_only)) if bars_only else 0.0
+            print(
+                f"[wave-debug] mode={visual_state} bars={len(bar_values)} span={wave_span:.2f} "
+                f"icon_h={icon_h:.2f} level_env={self._level_env:.3f}",
+                file=sys.stderr,
+            )
+            self._last_wave_debug_log = now
+
+        painter.setPen(Qt.NoPen)
+
     def _paint_window(self, window):
         painter = QPainter(window)
         painter.setRenderHint(QPainter.Antialiasing, True)
@@ -772,75 +1279,13 @@ class GUIManager:
 
         w = float(window.width())
         h = float(window.height())
-        mid_y = h / 2.0
+        outer_radius = max(14.0, min(24.0, h * 0.48))
+        inner_radius = max(12.0, outer_radius - 1.5)
 
-        self._draw_rounded_rect(painter, 0, 0, w, h, "#0b1324", 24)
-        self._draw_rounded_rect(painter, 1, 1, w - 2, h - 2, "#0f1b33", 23)
-        self._draw_close_button(painter)
-
-        # Logo removed - minimal GUI with audio bars only
-        start_x = 12.0
-
-        if self._mode == "record":
-            top_color = QColor("#f8fafc")
-            bottom_color = QColor("#94a3b8")
-            glow_color = QColor(241, 245, 249, 88)
-        elif self._mode == "processing":
-            top_color = QColor("#e2e8f0")
-            bottom_color = QColor("#64748b")
-            glow_color = QColor(226, 232, 240, 64)
-        elif self._mode == "done":
-            top_color = QColor("#ffffff")
-            bottom_color = QColor("#a3b3c8")
-            glow_color = QColor(248, 250, 252, 76)
-        else:
-            top_color = QColor("#cbd5e1")
-            bottom_color = QColor("#475569")
-            glow_color = QColor(203, 213, 225, 56)
-
-        bar_w = 5.0
-        gap = 4.0
-        max_h = h - 16.0
-        right_pad = 32.0 if self._show_close_button else 8.0
-        available_w = max(0.0, w - start_x - right_pad)
-        stride = bar_w + gap
-        bars_to_draw = min(self._bar_count, max(1, int(available_w // stride)))
-
-        for i in range(bars_to_draw):
-            idx = int(i * self._bar_count / bars_to_draw)
-            mirror_idx = self._bar_count - 1 - idx
-            raw_level = (self._current_heights[idx] * 0.7) + (self._current_heights[mirror_idx] * 0.3)
-            height_factor = max(0.0, min(1.0, raw_level))
-            center_dist = 0.0 if bars_to_draw <= 1 else abs((i / (bars_to_draw - 1)) - 0.5) * 2.0
-            arch = 1.0 - (center_dist ** 1.35) * 0.35
-            hv = max(5.0, height_factor * max_h * arch)
-            x = start_x + i * stride + bar_w / 2.0
-            edge_weight = 1.0 - center_dist
-
-            local_glow = QColor(
-                glow_color.red(),
-                glow_color.green(),
-                glow_color.blue(),
-                int(glow_color.alpha() * (0.62 + 0.38 * edge_weight)),
-            )
-            painter.setBrush(local_glow)
-            self._draw_capsule(painter, x, mid_y, bar_w + 4.8, hv + 6.2)
-
-            grad = QLinearGradient(x, mid_y - hv / 2.0, x, mid_y + hv / 2.0)
-            grad.setColorAt(0.0, top_color)
-            grad.setColorAt(0.58, QColor(176, 188, 206))
-            grad.setColorAt(1.0, bottom_color)
-            painter.setBrush(grad)
-            self._draw_capsule(painter, x, mid_y, bar_w, hv)
-
-            painter.setBrush(QColor(255, 255, 255, 56 if self._mode == "record" else 36))
-            self._draw_capsule(
-                painter,
-                x + 0.3,
-                mid_y - hv * 0.18,
-                max(1.8, bar_w - 2.7),
-                max(4.0, hv * 0.30),
-            )
+        self._paint_shell(painter, w, h, outer_radius, inner_radius)
+        if self._show_close_button:
+            self._draw_close_button(painter)
+        self._paint_bars(painter, w, h)
 
         painter.end()
 

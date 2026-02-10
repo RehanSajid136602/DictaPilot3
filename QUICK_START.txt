@@ -1,37 +1,62 @@
-DictaPilot Quick Start Guide
-============================
+DictaPilot Quick Start
+======================
 
-ONE-CLICK START
----------------
-To launch DictaPilot with a single double-click, use the scripts in the portable-start folder:
-
-  portable-start/start_windows.bat    (Windows)
-  portable-start/start_linux.sh      (Linux)
-  portable-start/start_macos.command  (macOS)
-
-PORTABILITY
+STATUS NOTE
 -----------
-The portable-start folder can be copied to any location on your computer:
-- Desktop
-- Documents
-- Downloads
-- Any other folder
+DictaPilot is terminal-first today. There is no full GUI and no Dory integration yet.
+These are planned for upcoming releases.
 
-Simply double-click the appropriate script for your OS to launch the app.
+1) INSTALL PYTHON
+-----------------
+Install Python 3.10+:
+https://www.python.org/downloads/
 
-REQUIREMENTS
-------------
-Before using the one-click start scripts:
-1. Install Python 3.10 or higher from https://www.python.org/downloads/
-2. Run the setup script for your OS:
-   - Windows: setup\setup_windows.bat
-   - Linux: setup/setup_linux.sh
-   - macOS: setup/setup_macos.command
+2) RUN SETUP SCRIPT
+-------------------
+From the project root, run:
 
-This creates the virtual environment and installs all dependencies.
+  Windows: setup\setup_windows.bat
+  Linux:   ./setup/setup_linux.sh
+  macOS:   ./setup/setup_macos.command
+
+This creates `venv`, installs dependencies, and creates `.env` from `.env.example`.
+
+3) ADD API KEY
+--------------
+Open `.env` and set:
+
+  GROQ_API_KEY=your_real_key
+
+4) START DICTAPILOT
+-------------------
+Run:
+
+  python app.py
+
+Then:
+- Focus any text field
+- Hold `F9`
+- Speak
+- Release `F9` to transcribe and paste
+
+5) OPTIONAL: ONE-CLICK START
+----------------------------
+After setup, you can use:
+
+  portable-start/start_windows.bat
+  portable-start/start_linux.sh
+  portable-start/start_macos.command
+
+6) OPTIONAL: START AT LOGIN
+---------------------------
+Use:
+
+  auto_start/autostart_windows.bat
+  auto_start/autostart_linux.sh
+  auto_start/autostart_macos.command
 
 TROUBLESHOOTING
 ---------------
-For detailed troubleshooting information, see: portable-start/README.txt
-
-For more information about DictaPilot, see: README.md
+- Portable scripts: `portable-start/README.txt`
+- Auto-start scripts: `auto_start/README.txt`
+- Full guide: `README.md`
