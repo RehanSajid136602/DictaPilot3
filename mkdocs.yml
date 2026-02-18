@@ -1,0 +1,80 @@
+site_name: DictaPilot3 Documentation
+site_description: Cross-platform voice dictation with smart editing
+site_author: Rehan
+site_url: https://rehansajid136602.github.io/DictaPilot
+
+repo_name: RehanSajid136602/DictaPilot
+repo_url: https://github.com/RehanSajid136602/DictaPilot
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  palette:
+    # Light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    # Dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+  icon:
+    repo: fontawesome/brands/github
+
+plugins:
+  - search:
+      lang: en
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.tabbed:
+      alternate_style: true
+  - tables
+  - attr_list
+  - md_in_html
+
+nav:
+  - Home: index.md
+  - Getting Started:
+    - Quick Start: quick-start.md
+    - Voice Commands: voice-commands.md
+    - Troubleshooting: troubleshooting.md
+    - FAQ: faq.md
+  - Platform Guides:
+    - Linux: platform-guides/linux.md
+    - macOS: platform-guides/macos.md
+    - Windows: platform-guides/windows.md
+  - Developer:
+    - Architecture: developer/architecture.md
+    - API Reference: developer/api-reference.md
+    - Contributing: developer/contributing.md
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/RehanSajid136602/DictaPilot
+  version:
+    provider: mike

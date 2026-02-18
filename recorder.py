@@ -33,30 +33,39 @@ import time
 import tempfile
 import os
 import queue
-from typing import Optional, Callable
+from typing import Optional, Callable, TYPE_CHECKING
 import numpy as np
 import sounddevice as sd
 
 from audio.vad import VoiceActivityDetector
+
+if TYPE_CHECKING:
+    from audio_buffer import ChunkedAudioBuffer
 
 
 class AudioRecorder:
     """
     Audio recorder with real-time level updates and optional VAD (Voice Activity Detection)
     Designed for real-time dictation with low-latency feedback
+    
+    Supports streaming mode for real-time transcription:
+    - Set streaming_mode=True and provide a chunk_callback
+    - Audio chunks are passed to the callback for streaming processing
     """
 
     def __init__(self,
                  sample_rate: int = 16000,
                  channels: int = 1,
                  enable_vad: bool = False,
-                 chunk_duration: float = 0.5):  # 500ms chunks
+                 chunk_duration: float = 0.5,  # 500ms chunks
+                 streaming_mode: bool = False):
 
         self.sample_rate = sample_rate
         self.channels = channels
         self.enable_vad = enable_vad
         self.chunk_duration = chunk_duration
         self.chunk_size = int(sample_rate * chunk_duration)
+        self.streaming_mode = streaming_mode
 
         # Audio state
         self.is_recording = False
@@ -70,6 +79,9 @@ class AudioRecorder:
         # Audio buffer
         self._audio_buffer = []
         self._buffer_lock = threading.RLock()
+        
+        # Streaming buffer for chunked audio processing
+        self._streaming_buffer: Optional['ChunkedAudioBuffer'] = None
 
         # VAD if enabled
         self.vad_detector = VoiceActivityDetector(sample_rate) if enable_vad else None
@@ -77,6 +89,13 @@ class AudioRecorder:
         # Statistics
         self.total_samples = 0
         self.rms_history = []
+    
+    def set_streaming_buffer(self, buffer: 'ChunkedAudioBuffer'):
+        """
+        Set a ChunkedAudioBuffer for streaming transcription.
+        Audio will be automatically added to the buffer during recording.
+        """
+        self._streaming_buffer = buffer
 
     def set_level_callback(self, callback: Callable[[float], None]):
         """Set callback for real-time audio level updates"""
@@ -172,6 +191,10 @@ class AudioRecorder:
             self._audio_buffer.append(audio_chunk)
             self.total_samples += len(audio_chunk)
             self.rms_history.append(rms)
+
+        # Add to streaming buffer if set
+        if self._streaming_buffer is not None:
+            self._streaming_buffer.add_audio(audio_chunk)
 
         # Call chunk callback if set
         if self.chunk_callback:

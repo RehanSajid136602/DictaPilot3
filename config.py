@@ -82,6 +82,20 @@ DEFAULT_CONFIG = {
     "cleanup_strictness": "balanced",  # "conservative", "balanced", "aggressive"
     "user_adaptation": True,
     "confidence_threshold": 0.65,
+    # Wayland-specific settings
+    "display_server": "auto",  # "auto", "wayland", "x11"
+    "wayland_compositor": "auto",  # "auto", "gnome", "kde", "sway"
+    # Streaming transcription settings
+    "streaming_enabled": True,
+    "streaming_chunk_duration": 1.5,  # seconds per chunk
+    "streaming_chunk_overlap": 0.3,  # overlap between chunks
+    "streaming_min_chunks": 2,  # minimum chunks before first result
+    "streaming_final_pass": True,  # run final accuracy pass
+    # Agent mode settings
+    "agent_auto_detect": True,  # auto-detect agent mode from speech
+    "agent_output_format": "structured",  # "structured", "markdown", "plain"
+    "agent_webhook_url": "",  # webhook URL for agent integration
+    "agent_ide_integration": False,  # enable IDE integration
 }
 
 
@@ -96,6 +110,7 @@ class DictaPilotConfig:
     paste_backend: str = "auto"
     hotkey_backend: str = "auto"
     reset_transcript_each_recording: bool = True
+    setup_completed: bool = False
     # New BridgeVoice-style improvements config
     mode: str = "dictation"  # "dictation" or "agent"
     audio_device: str = ""
@@ -113,6 +128,20 @@ class DictaPilotConfig:
     cleanup_strictness: str = "balanced"
     user_adaptation: bool = True
     confidence_threshold: float = 0.65
+    # Wayland-specific settings
+    display_server: str = "auto"  # "auto", "wayland", "x11"
+    wayland_compositor: str = "auto"  # "auto", "gnome", "kde", "sway"
+    # Streaming transcription settings
+    streaming_enabled: bool = True
+    streaming_chunk_duration: float = 1.5  # seconds per chunk
+    streaming_chunk_overlap: float = 0.3  # overlap between chunks
+    streaming_min_chunks: int = 2  # minimum chunks before first result
+    streaming_final_pass: bool = True  # run final accuracy pass
+    # Agent mode settings
+    agent_auto_detect: bool = True  # auto-detect agent mode from speech
+    agent_output_format: str = "structured"  # "structured", "markdown", "plain"
+    agent_webhook_url: str = ""  # webhook URL for agent integration
+    agent_ide_integration: bool = False  # enable IDE integration
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
@@ -180,6 +209,20 @@ def load_config() -> DictaPilotConfig:
         "CLEANUP_STRICTNESS": os.getenv("CLEANUP_STRICTNESS"),
         "USER_ADAPTATION": os.getenv("USER_ADAPTATION"),
         "CONFIDENCE_THRESHOLD": os.getenv("CONFIDENCE_THRESHOLD"),
+        # Wayland-specific settings
+        "DISPLAY_SERVER": os.getenv("DISPLAY_SERVER"),
+        "WAYLAND_COMPOSITOR": os.getenv("WAYLAND_COMPOSITOR"),
+        # Streaming transcription settings
+        "STREAMING_ENABLED": os.getenv("STREAMING_ENABLED"),
+        "STREAMING_CHUNK_DURATION": os.getenv("STREAMING_CHUNK_DURATION"),
+        "STREAMING_CHUNK_OVERLAP": os.getenv("STREAMING_CHUNK_OVERLAP"),
+        "STREAMING_MIN_CHUNKS": os.getenv("STREAMING_MIN_CHUNKS"),
+        "STREAMING_FINAL_PASS": os.getenv("STREAMING_FINAL_PASS"),
+        # Agent mode settings
+        "AGENT_AUTO_DETECT": os.getenv("AGENT_AUTO_DETECT"),
+        "AGENT_OUTPUT_FORMAT": os.getenv("AGENT_OUTPUT_FORMAT"),
+        "AGENT_WEBHOOK_URL": os.getenv("AGENT_WEBHOOK_URL"),
+        "AGENT_IDE_INTEGRATION": os.getenv("AGENT_IDE_INTEGRATION"),
     }
     
     for key, value in env_overrides.items():
@@ -239,6 +282,43 @@ def load_config() -> DictaPilotConfig:
                     config.confidence_threshold = float(value)
                 except ValueError:
                     pass
+            # Wayland-specific settings
+            elif key == "DISPLAY_SERVER":
+                if value.lower() in ("wayland", "x11", "auto"):
+                    config.display_server = value.lower()
+            elif key == "WAYLAND_COMPOSITOR":
+                if value.lower() in ("auto", "gnome", "kde", "sway"):
+                    config.wayland_compositor = value.lower()
+            # Streaming transcription settings
+            elif key == "STREAMING_ENABLED":
+                config.streaming_enabled = value.lower() in ("1", "true", "yes")
+            elif key == "STREAMING_CHUNK_DURATION":
+                try:
+                    config.streaming_chunk_duration = float(value)
+                except ValueError:
+                    pass
+            elif key == "STREAMING_CHUNK_OVERLAP":
+                try:
+                    config.streaming_chunk_overlap = float(value)
+                except ValueError:
+                    pass
+            elif key == "STREAMING_MIN_CHUNKS":
+                try:
+                    config.streaming_min_chunks = int(value)
+                except ValueError:
+                    pass
+            elif key == "STREAMING_FINAL_PASS":
+                config.streaming_final_pass = value.lower() in ("1", "true", "yes")
+            # Agent mode settings
+            elif key == "AGENT_AUTO_DETECT":
+                config.agent_auto_detect = value.lower() in ("1", "true", "yes")
+            elif key == "AGENT_OUTPUT_FORMAT":
+                if value.lower() in ("structured", "markdown", "plain"):
+                    config.agent_output_format = value.lower()
+            elif key == "AGENT_WEBHOOK_URL":
+                config.agent_webhook_url = value
+            elif key == "AGENT_IDE_INTEGRATION":
+                config.agent_ide_integration = value.lower() in ("1", "true", "yes")
 
     return config
 
@@ -271,3 +351,17 @@ def apply_config_to_env(config: DictaPilotConfig) -> None:
     os.environ["CLEANUP_STRICTNESS"] = config.cleanup_strictness
     os.environ["USER_ADAPTATION"] = "1" if config.user_adaptation else "0"
     os.environ["CONFIDENCE_THRESHOLD"] = str(config.confidence_threshold)
+    # Wayland-specific settings
+    os.environ["DISPLAY_SERVER"] = config.display_server
+    os.environ["WAYLAND_COMPOSITOR"] = config.wayland_compositor
+    # Streaming transcription settings
+    os.environ["STREAMING_ENABLED"] = "1" if config.streaming_enabled else "0"
+    os.environ["STREAMING_CHUNK_DURATION"] = str(config.streaming_chunk_duration)
+    os.environ["STREAMING_CHUNK_OVERLAP"] = str(config.streaming_chunk_overlap)
+    os.environ["STREAMING_MIN_CHUNKS"] = str(config.streaming_min_chunks)
+    os.environ["STREAMING_FINAL_PASS"] = "1" if config.streaming_final_pass else "0"
+    # Agent mode settings
+    os.environ["AGENT_AUTO_DETECT"] = "1" if config.agent_auto_detect else "0"
+    os.environ["AGENT_OUTPUT_FORMAT"] = config.agent_output_format
+    os.environ["AGENT_WEBHOOK_URL"] = config.agent_webhook_url
+    os.environ["AGENT_IDE_INTEGRATION"] = "1" if config.agent_ide_integration else "0"

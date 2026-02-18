@@ -41,6 +41,12 @@ class AgentPrompt:
     constraints: str = ""
     acceptance_criteria: str = ""
     files_locations: List[str] = None
+    # Enhanced fields
+    priority: str = "normal"  # "urgent", "normal", "low"
+    complexity: str = "moderate"  # "simple", "moderate", "complex"
+    language: str = ""  # Detected programming language
+    frameworks: List[str] = None  # Detected frameworks
+    code_references: List[str] = None  # Class/function names mentioned
 
     def to_markdown(self) -> str:
         """Convert to markdown format"""
@@ -63,6 +69,23 @@ class AgentPrompt:
             for file_loc in self.files_locations:
                 md += f"- {file_loc}\n"
             md += "\n"
+
+        # Enhanced fields
+        meta = []
+        if self.priority and self.priority != "normal":
+            meta.append(f"**Priority:** {self.priority}")
+        if self.complexity and self.complexity != "moderate":
+            meta.append(f"**Complexity:** {self.complexity}")
+        if self.language:
+            meta.append(f"**Language:** {self.language}")
+        if self.frameworks:
+            meta.append(f"**Frameworks:** {', '.join(self.frameworks)}")
+        if self.code_references:
+            meta.append(f"**Code References:** {', '.join(self.code_references)}")
+
+        if meta:
+            md += "## Metadata\n"
+            md += " | ".join(meta) + "\n\n"
 
         return md.strip()
 
@@ -87,6 +110,18 @@ class AgentPrompt:
             for file_loc in self.files_locations:
                 text += f"  - {file_loc}\n"
 
+        # Enhanced fields
+        if self.priority and self.priority != "normal":
+            text += f"\nPRIORITY: {self.priority}\n"
+        if self.complexity and self.complexity != "moderate":
+            text += f"COMPLEXITY: {self.complexity}\n"
+        if self.language:
+            text += f"LANGUAGE: {self.language}\n"
+        if self.frameworks:
+            text += f"FRAMEWORKS: {', '.join(self.frameworks)}\n"
+        if self.code_references:
+            text += f"CODE REFERENCES: {', '.join(self.code_references)}\n"
+
         return text.strip()
 
 
@@ -95,6 +130,40 @@ class AgentFormatter:
     Formats transcriptions into structured prompts for coding agents
     Detects patterns and extracts structured information from natural language
     """
+
+    # Programming language keywords
+    LANGUAGES = {
+        'python': ['python', 'django', 'flask', 'fastapi', 'pandas', 'numpy', 'pytest'],
+        'javascript': ['javascript', 'js', 'node', 'nodejs', 'express', 'react', 'vue', 'angular', 'npm'],
+        'typescript': ['typescript', 'ts', 'tsx', 'deno', 'nestjs'],
+        'java': ['java', 'spring', 'springboot', 'maven', 'gradle', 'kotlin'],
+        'csharp': ['c#', 'csharp', '.net', 'dotnet', 'asp.net', 'unity'],
+        'cpp': ['c++', 'cpp', 'qt', 'cmake', 'boost'],
+        'go': ['golang', 'go', 'gin', 'echo'],
+        'rust': ['rust', 'cargo', 'tokio', 'actix'],
+        'ruby': ['ruby', 'rails', 'ruby on rails', 'gem'],
+        'php': ['php', 'laravel', 'symfony', 'wordpress'],
+        'sql': ['sql', 'postgres', 'postgresql', 'mysql', 'sqlite', 'database'],
+    }
+
+    # Framework keywords
+    FRAMEWORKS = {
+        'react': ['react', 'reactjs', 'jsx'],
+        'vue': ['vue', 'vuejs', 'vuex'],
+        'angular': ['angular', 'angularjs'],
+        'django': ['django'],
+        'flask': ['flask'],
+        'fastapi': ['fastapi'],
+        'express': ['express', 'expressjs'],
+        'spring': ['spring', 'springboot', 'spring boot'],
+        'rails': ['rails', 'ruby on rails'],
+        'laravel': ['laravel'],
+        'nextjs': ['nextjs', 'next.js', 'next'],
+        'tailwind': ['tailwind', 'tailwindcss'],
+        'bootstrap': ['bootstrap'],
+        'tensorflow': ['tensorflow', 'tf'],
+        'pytorch': ['pytorch', 'torch'],
+    }
 
     def __init__(self):
         # Regex patterns to identify different parts of agent instructions
@@ -118,13 +187,29 @@ class AgentFormatter:
                 r'(?:acceptance|criteria|condition|expected|should):?\s*(.*)',
                 r'(?:so that|such that|in order that)\s+(.+?)(?:\s*\.)',
                 r'(?:the\s+result|it)\s+should\s+(.+?)(?:\s*\.)',
-            ]
+            ],
+            'priority': [
+                r'\b(urgent|asap|critical|important|high priority)\b',
+                r'\b(low priority|when you have time|eventually|later)\b',
+            ],
+            'complexity': [
+                r'\b(simple|easy|quick|straightforward|basic)\b',
+                r'\b(complex|complicated|advanced|sophisticated|elaborate)\b',
+            ],
         }
 
         # File/path detection patterns
         self.file_patterns = [
             r'[./~][\w/\-.]+\.(?:py|js|ts|jsx|tsx|html|css|scss|java|cpp|c|h|go|rs|rb|php|sql|json|yaml|yml|xml|md|txt)',
             r'(?<=\W)(?:src|lib|test|dist|public|private|assets|components|views|controllers|routes|api)/[\w/\-.]+(?=\W|$)',
+        ]
+
+        # Code reference patterns (class names, function names)
+        self.code_ref_patterns = [
+            r'\b([A-Z][a-zA-Z0-9]*(?:Service|Controller|Repository|Factory|Builder|Handler|Manager|Provider|Helper|Utils?|Model|View|Component|Class|Interface|Abstract|Base))\b',
+            r'\b([a-z][a-zA-Z0-9]*(?:Function|Method|Handler|Callback|Validator|Parser|Formatter))\b',
+            r'(?:function|method|class|interface)\s+([a-zA-Z_][a-zA-Z0-9_]*)',
+            r'(?:in the|in a|the)\s+([a-zA-Z_][a-zA-Z0-9_]*)\s+(?:function|method|class)',
         ]
 
     def extract_structured_info(self, text: str) -> AgentPrompt:
@@ -139,13 +224,25 @@ class AgentFormatter:
         constraints = self._extract_constraints(text)
         acceptance_criteria = self._extract_acceptance_criteria(text)
         files_locations = self._extract_files_locations(text)
+        
+        # Enhanced extraction
+        priority = self._extract_priority(text)
+        complexity = self._extract_complexity(text)
+        language = self._detect_language(text)
+        frameworks = self._detect_frameworks(text)
+        code_references = self._extract_code_references(text)
 
         return AgentPrompt(
             task=task,
             context=context,
             constraints=constraints,
             acceptance_criteria=acceptance_criteria,
-            files_locations=files_locations
+            files_locations=files_locations,
+            priority=priority,
+            complexity=complexity,
+            language=language,
+            frameworks=frameworks,
+            code_references=code_references,
         )
 
     def _normalize_text(self, text: str) -> str:
@@ -261,6 +358,105 @@ class AgentFormatter:
         # Filter out empty strings and clean up
         return [s.strip() for s in sentences if s.strip()]
 
+    def _extract_priority(self, text: str) -> str:
+        """Extract priority level from text"""
+        text_lower = text.lower()
+        
+        # Check for urgent keywords
+        urgent_keywords = ['urgent', 'asap', 'critical', 'important', 'high priority', 'immediately', 'right now']
+        for keyword in urgent_keywords:
+            if keyword in text_lower:
+                return "urgent"
+        
+        # Check for low priority keywords
+        low_keywords = ['low priority', 'when you have time', 'eventually', 'later', 'no rush', 'whenever']
+        for keyword in low_keywords:
+            if keyword in text_lower:
+                return "low"
+        
+        return "normal"
+
+    def _extract_complexity(self, text: str) -> str:
+        """Estimate complexity from text"""
+        text_lower = text.lower()
+        
+        # Check for simple keywords
+        simple_keywords = ['simple', 'easy', 'quick', 'straightforward', 'basic', 'small', 'minor']
+        for keyword in simple_keywords:
+            if keyword in text_lower:
+                return "simple"
+        
+        # Check for complex keywords
+        complex_keywords = ['complex', 'complicated', 'advanced', 'sophisticated', 'elaborate', 'comprehensive', 'full']
+        for keyword in complex_keywords:
+            if keyword in text_lower:
+                return "complex"
+        
+        # Heuristic: count technical terms and file mentions
+        technical_count = 0
+        if self._extract_files_locations(text):
+            technical_count += len(self._extract_files_locations(text))
+        
+        # Words that suggest complexity
+        complexity_indicators = ['integrate', 'migrate', 'refactor', 'architect', 'design', 'system', 'multiple']
+        for indicator in complexity_indicators:
+            if indicator in text_lower:
+                technical_count += 1
+        
+        if technical_count >= 3:
+            return "complex"
+        elif technical_count >= 1:
+            return "moderate"
+        
+        return "moderate"
+
+    def _detect_language(self, text: str) -> str:
+        """Detect programming language from text"""
+        text_lower = text.lower()
+        
+        for lang, keywords in self.LANGUAGES.items():
+            for keyword in keywords:
+                if keyword in text_lower:
+                    return lang
+        
+        # Try to detect from file extensions
+        for pattern in self.file_patterns:
+            matches = re.finditer(pattern, text)
+            for match in matches:
+                file_path = match.group(0).lower()
+                for lang, keywords in self.LANGUAGES.items():
+                    for keyword in keywords:
+                        if keyword in file_path:
+                            return lang
+        
+        return ""
+
+    def _detect_frameworks(self, text: str) -> List[str]:
+        """Detect frameworks mentioned in text"""
+        text_lower = text.lower()
+        detected = set()
+        
+        for framework, keywords in self.FRAMEWORKS.items():
+            for keyword in keywords:
+                if keyword in text_lower:
+                    detected.add(framework)
+        
+        return sorted(list(detected))
+
+    def _extract_code_references(self, text: str) -> List[str]:
+        """Extract class names, function names, and other code references"""
+        references = set()
+        
+        for pattern in self.code_ref_patterns:
+            matches = re.finditer(pattern, text, re.IGNORECASE)
+            for match in matches:
+                ref = match.group(1).strip()
+                # Filter out common words
+                if ref and len(ref) > 2 and ref.lower() not in ['the', 'a', 'an', 'this', 'that', 'class', 'function', 'method']:
+                    references.add(ref)
+        
+        return sorted(list(references))
+
     def format_for_agent(self, text: str, mode: str = "structured") -> str:
         """
         Format text for agent consumption
@@ -300,6 +496,22 @@ class AgentFormatter:
 
             if structured.files_locations:
                 result.append(f"FILES/LOCATIONS: {', '.join(structured.files_locations)}")
+
+            # Enhanced fields
+            if structured.priority and structured.priority != "normal":
+                result.append(f"PRIORITY: {structured.priority}")
+
+            if structured.complexity and structured.complexity != "moderate":
+                result.append(f"COMPLEXITY: {structured.complexity}")
+
+            if structured.language:
+                result.append(f"LANGUAGE: {structured.language}")
+
+            if structured.frameworks:
+                result.append(f"FRAMEWORKS: {', '.join(structured.frameworks)}")
+
+            if structured.code_references:
+                result.append(f"CODE REFERENCES: {', '.join(structured.code_references)}")
 
             return "\n\n".join(result)
 

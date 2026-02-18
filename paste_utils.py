@@ -28,10 +28,31 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
+import os
 import shutil
 import subprocess
 import sys
 from typing import List, Tuple
+
+# Display server detection for backend selection
+_display_server_cache = None
+
+def _get_display_server() -> str:
+    """Get cached display server type."""
+    global _display_server_cache
+    if _display_server_cache is None:
+        try:
+            from display_server import detect_display_server
+            _display_server_cache = detect_display_server()
+        except ImportError:
+            # Fallback detection
+            if os.getenv("WAYLAND_DISPLAY"):
+                _display_server_cache = "wayland"
+            elif os.getenv("DISPLAY"):
+                _display_server_cache = "x11"
+            else:
+                _display_server_cache = "unknown"
+    return _display_server_cache
 
 
 def longest_common_prefix(a: str, b: str) -> int:
@@ -350,17 +371,150 @@ def _x11_type(text: str) -> bool:
 def _backend_order(selected: str) -> List[str]:
     if selected != "auto":
         return [selected]
-    if sys.platform.startswith("linux"):
+    
+    # Detect display server for auto selection
+    display_server = _get_display_server()
+    
+    if display_server == "wayland":
+        # On Wayland: prefer wayland backend (wl-clipboard), then pynput
+        return ["wayland", "pynput", "xdotool", "keyboard"]
+    elif sys.platform.startswith("linux"):
         return ["x11", "pynput", "xdotool", "keyboard"]
     if sys.platform == "darwin":
         return ["pynput", "osascript", "keyboard"]
     return ["keyboard", "pynput"]
 
 
+# ============================================================================
+# Wayland Paste Backend Functions
+# ============================================================================
+
+def _has_wl_clipboard() -> bool:
+    """Check if wl-clipboard is available."""
+    return shutil.which("wl-copy") is not None
+
+
+def _has_wtype() -> bool:
+    """Check if wtype is available."""
+    return shutil.which("wtype") is not None
+
+
+def _wl_copy(text: str) -> bool:
+    """Copy text to clipboard using wl-copy (Wayland)."""
+    if not _has_wl_clipboard():
+        return False
+    try:
+        subprocess.run(
+            ["wl-copy"],
+            input=text.encode("utf-8"),
+            check=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=2.0
+        )
+        return True
+    except Exception:
+        return False
+
+
+def _wtype_key(combo: str) -> bool:
+    """Simulate key press using wtype (Wayland)."""
+    if not _has_wtype():
+        return False
+    try:
+        # Parse combo like "ctrl+v"
+        parts = combo.split("+")
+        args = []
+        for part in parts[:-1]:
+            args.extend(["-M", part.lower()])
+        args.append(parts[-1].lower())
+        for part in reversed(parts[:-1]):
+            args.extend(["-m", part.lower()])
+        
+        subprocess.run(
+            ["wtype"] + args,
+            check=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=1.0
+        )
+        return True
+    except Exception:
+        return False
+
+
+def _wtype_type(text: str) -> bool:
+    """Type text using wtype (Wayland)."""
+    if not _has_wtype():
+        return False
+    try:
+        subprocess.run(
+            ["wtype", text],
+            check=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=5.0
+        )
+        return True
+    except Exception:
+        return False
+
+
+def _wayland_paste(text: str, backend: str = "auto") -> bool:
+    """Paste text on Wayland using wl-clipboard and keyboard simulation."""
+    if not text:
+        return True
+    
+    # Copy to clipboard using wl-copy
+    if _wl_copy(text):
+        # Small delay for clipboard to settle
+        import time
+        time.sleep(0.05)
+        
+        # Simulate Ctrl+V
+        if _wtype_key("ctrl+v"):
+            return True
+        # Fallback to pynput for keyboard simulation
+        if _pynput_key("ctrl+v"):
+            return True
+    
+    # Fallback: type directly
+    if _wtype_type(text):
+        return True
+    if _pynput_type(text):
+        return True
+    
+    return False
+
+
+def _wayland_backspace(count: int) -> bool:
+    """Send backspace on Wayland."""
+    if count <= 0:
+        return True
+    
+    if _has_wtype():
+        try:
+            for _ in range(count):
+                subprocess.run(
+                    ["wtype", "-k", "BackSpace"],
+                    check=True,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    timeout=0.5
+                )
+            return True
+        except Exception:
+            pass
+    
+    return _pynput_backspace(count)
+
+
 def _send_hotkey(combo: str, backend: str = "auto") -> None:
     selected = (backend or "auto").strip().lower()
     combo = _to_platform_combo(combo)
     for candidate in _backend_order(selected):
+        if candidate == "wayland" and _wtype_key(combo):
+            return
         if candidate == "x11" and _x11_key(combo):
             return
         if candidate == "pynput" and _pynput_key(combo):
@@ -377,7 +531,7 @@ def _send_hotkey(combo: str, backend: str = "auto") -> None:
             except Exception:
                 continue
     raise RuntimeError(
-        f"Failed to send hotkey '{combo}'. Try PASTE_BACKEND=x11/pynput/xdotool/osascript and check input permissions."
+        f"Failed to send hotkey '{combo}'. Try PASTE_BACKEND=wayland/x11/pynput/xdotool/osascript and check input permissions."
     )
 
 
@@ -386,6 +540,8 @@ def _send_backspaces(count: int, backend: str = "auto") -> None:
         return
     selected = (backend or "auto").strip().lower()
     for candidate in _backend_order(selected):
+        if candidate == "wayland" and _wayland_backspace(count):
+            return
         if candidate == "x11" and _x11_backspace(count):
             return
         if candidate == "pynput" and _pynput_backspace(count):
@@ -403,7 +559,7 @@ def _send_backspaces(count: int, backend: str = "auto") -> None:
             except Exception:
                 continue
     raise RuntimeError(
-        "Failed to send backspace events. Try PASTE_BACKEND=x11/pynput/xdotool/osascript and check input permissions."
+        "Failed to send backspace events. Try PASTE_BACKEND=wayland/x11/pynput/xdotool/osascript and check input permissions."
     )
 
 
@@ -412,6 +568,8 @@ def _type_text(text: str, backend: str = "auto") -> None:
         return
     selected = (backend or "auto").strip().lower()
     for candidate in _backend_order(selected):
+        if candidate == "wayland" and _wtype_type(text):
+            return
         if candidate == "x11" and _x11_type(text):
             return
         if candidate == "pynput" and _pynput_type(text):
@@ -427,7 +585,7 @@ def _type_text(text: str, backend: str = "auto") -> None:
                 return
             except Exception:
                 continue
-    raise RuntimeError("Failed to type text. Try PASTE_BACKEND=x11/pynput/xdotool/osascript and check input permissions.")
+    raise RuntimeError("Failed to type text. Try PASTE_BACKEND=wayland/x11/pynput/xdotool/osascript and check input permissions.")
 
 
 def _copy_with_pyperclip(text: str) -> bool:

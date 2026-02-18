@@ -41,7 +41,29 @@ import numpy as np
 import sounddevice as sd
 import soundfile as sf
 from dotenv import load_dotenv
+
+# Check for first run before loading other modules
+load_dotenv()
+SETUP_COMPLETED = os.getenv("SETUP_COMPLETED", "0").strip() not in {"0", "false", "no", "off"}
+
+# Launch onboarding wizard if first run
+if not SETUP_COMPLETED and "--no-wizard" not in sys.argv and "--gui" not in sys.argv:
+    try:
+        from onboarding_wizard import run_wizard
+        print("First run detected. Launching setup wizard...")
+        if not run_wizard():
+            print("Setup cancelled. Exiting.")
+            sys.exit(0)
+        # Reload environment after wizard
+        load_dotenv(override=True)
+    except ImportError:
+        print("Warning: Onboarding wizard not available. Continuing with manual setup.")
+    except Exception as e:
+        print(f"Warning: Could not launch wizard: {e}")
+        print("Continuing with manual setup.")
+
 from paste_utils import paste_text
+from display_server import detect_display_server, is_wayland, is_x11, get_display_server_info
 from smart_editor import (
     TranscriptState,
     smart_update_state,
@@ -52,6 +74,8 @@ from smart_editor import (
     CLEANUP_LEVEL,
 )
 from transcription_store import add_transcription, get_storage_info, export_all_to_text
+from audio_buffer import ChunkedAudioBuffer, AudioChunk
+from streaming_transcriber import StreamingTranscriber, DualPassTranscriber, StreamingResult
 
 try:
     from PySide6.QtCore import QPoint, QRectF, Qt, QTimer
@@ -128,6 +152,19 @@ SR = _env_int("SAMPLE_RATE", 16000)
 CHANNELS = _env_int("CHANNELS", 1)
 TRIM_SILENCE = _env_flag("TRIM_SILENCE", "1")
 SILENCE_THRESHOLD = float(os.getenv("SILENCE_THRESHOLD", "0.02"))
+
+# Streaming transcription settings
+STREAMING_ENABLED = _env_flag("STREAMING_ENABLED", "1")
+STREAMING_CHUNK_DURATION = _env_float("STREAMING_CHUNK_DURATION", 1.5, 0.5, 5.0)
+STREAMING_CHUNK_OVERLAP = _env_float("STREAMING_CHUNK_OVERLAP", 0.3, 0.0, 1.0)
+STREAMING_MIN_CHUNKS = _env_int("STREAMING_MIN_CHUNKS", 2)
+STREAMING_FINAL_PASS = _env_flag("STREAMING_FINAL_PASS", "1")
+
+# Agent mode settings
+AGENT_AUTO_DETECT = _env_flag("AGENT_AUTO_DETECT", "1")
+AGENT_OUTPUT_FORMAT = os.getenv("AGENT_OUTPUT_FORMAT", "structured").strip().lower()
+AGENT_WEBHOOK_URL = os.getenv("AGENT_WEBHOOK_URL", "").strip()
+AGENT_IDE_INTEGRATION = _env_flag("AGENT_IDE_INTEGRATION", "0")
 
 FLOATING_THEME = os.getenv("FLOATING_THEME", "professional_minimal").strip().lower()
 FLOATING_MOTION_PROFILE = os.getenv("FLOATING_MOTION_PROFILE", "expressive").strip().lower()
@@ -513,6 +550,22 @@ class HotkeyManager:
 
         self._stop = _stop
 
+    def _try_start_wayland(self):
+        """Start hotkey listener using Wayland backend (pynput fallback for now)."""
+        from wayland_backend import WaylandHotkeyBackend, has_portal, has_pynput
+        
+        # For now, use pynput on Wayland as portal integration requires
+        # more complex async handling
+        if has_pynput():
+            self._try_start_pynput()
+            return
+        
+        if not has_portal() and not has_pynput():
+            raise RuntimeError("Neither PyGObject (portal) nor pynput available for Wayland hotkey backend")
+        
+        # Fall back to pynput
+        self._try_start_pynput()
+
     def _handle_press(self):
         if self._pressed:
             return
@@ -528,8 +581,13 @@ class HotkeyManager:
     def start(self):
         order = []
         if self.backend == "auto":
-            # Linux avoids keyboard backend by default due /dev/input instability on many systems.
-            if sys.platform.startswith("linux"):
+            # Detect display server and select appropriate backend
+            display_server = detect_display_server()
+            if display_server == "wayland":
+                # On Wayland: prefer pynput (portal needs more work)
+                order = ["pynput"]
+            elif sys.platform.startswith("linux"):
+                # Linux X11: prefer X11 native, then pynput
                 order = ["x11", "pynput"]
             elif sys.platform == "darwin":
                 order = ["pynput", "keyboard"]
@@ -547,6 +605,8 @@ class HotkeyManager:
                     self._try_start_pynput()
                 elif candidate == "x11":
                     self._try_start_x11()
+                elif candidate == "wayland":
+                    self._try_start_wayland()
                 else:
                     raise ValueError(f"Unsupported hotkey backend '{candidate}'")
                 self.active_backend = candidate
@@ -754,6 +814,20 @@ class _QtFloatingWindow(QWidget):
         self._manager._paint_window(self)
 
 
+class _QtPreviewWindow(QWidget):
+    """Preview window for streaming transcription results"""
+    
+    def __init__(self, manager):
+        super().__init__(None)
+        self._manager = manager
+        self.setWindowFlags(Qt.FramelessWindowHint | Qt.Tool | Qt.WindowStaysOnTopHint)
+        self.setAttribute(Qt.WA_TranslucentBackground, True)
+        self.setAttribute(Qt.WA_ShowWithoutActivating, True)
+    
+    def paintEvent(self, event):
+        self._manager._paint_preview(self)
+
+
 class GUIManager:
     def __init__(self, on_close_requested=None):
         if not PYSIDE6_AVAILABLE:
@@ -768,8 +842,8 @@ class GUIManager:
 
         self._mode = "idle"
         self._display_text = "Ready"
-        self._full_width = max(120, _env_int("FLOATING_WIDTH", 148))
-        self._full_height = max(34, _env_int("FLOATING_HEIGHT", 36))
+        self._full_width = max(120, _env_int("FLOATING_WIDTH", 180))
+        self._full_height = max(34, _env_int("FLOATING_HEIGHT", 44))
         self._idle_scale = 0.50
         self._window_scale = 1.0
         self._target_window_scale = 1.0
@@ -800,6 +874,16 @@ class GUIManager:
         self._border_alpha = FLOATING_BORDER_ALPHA
         self._wave_debug = FLOATING_WAVE_DEBUG
         self._last_wave_debug_log = 0.0
+
+        # Preview window state
+        self._preview_window = _QtPreviewWindow(self)
+        self._preview_text = ""
+        self._preview_visible = False
+        self._preview_debounce_time = 0.0
+        self._preview_debounce_interval = 0.1  # 100ms debounce
+        self._streaming_status = ""  # "Streaming..." or "Finalizing..."
+        self._preview_max_width = 400
+        self._preview_max_height = 100
 
         self._window = _QtFloatingWindow(self)
         self._setup_window()
@@ -1311,6 +1395,137 @@ class GUIManager:
 
     def quit(self):
         self._app.quit()
+    
+    # --- Preview Window Methods ---
+    
+    def show_preview(self, text: str, status: str = ""):
+        """
+        Show preview text in overlay window.
+        
+        Args:
+            text: Preview text to display
+            status: Status indicator (e.g., "Streaming...", "Finalizing...")
+        """
+        now = time.time()
+        # Debounce updates
+        if now - self._preview_debounce_time < self._preview_debounce_interval:
+            return
+        
+        self._preview_debounce_time = now
+        self._preview_text = text
+        self._streaming_status = status
+        
+        if not self._preview_visible:
+            self._preview_visible = True
+            self._position_preview_window()
+            self._preview_window.show()
+        else:
+            self._preview_window.update()
+    
+    def hide_preview(self):
+        """Hide the preview window"""
+        if self._preview_visible:
+            self._preview_visible = False
+            self._preview_window.hide()
+            self._preview_text = ""
+            self._streaming_status = ""
+    
+    def update_preview(self, text: str, status: str = ""):
+        """
+        Update preview text with debouncing.
+        
+        Args:
+            text: New preview text
+            status: Status indicator
+        """
+        self.show_preview(text, status)
+    
+    def _position_preview_window(self):
+        """Position preview window below the main floating window"""
+        if not self._preview_visible:
+            return
+        
+        # Calculate preview size based on text
+        from PySide6.QtGui import QFontMetrics, QFont
+        
+        font = QFont("Sans Serif", 10)
+        fm = QFontMetrics(font)
+        
+        # Calculate text dimensions
+        text_width = min(fm.horizontalAdvance(self._preview_text), self._preview_max_width - 20)
+        text_height = fm.height()
+        
+        # Estimate lines needed
+        lines = max(1, len(self._preview_text) // 40 + 1)
+        preview_height = min(text_height * lines + 30, self._preview_max_height)
+        preview_width = min(text_width + 20, self._preview_max_width)
+        
+        self._preview_window.setFixedSize(int(preview_width), int(preview_height))
+        
+        # Position below main window
+        main_x = self._window.x()
+        main_y = self._window.y()
+        main_h = self._window.height()
+        
+        preview_x = main_x + (self._width - preview_width) // 2
+        preview_y = main_y + main_h + 5  # 5px gap
+        
+        self._preview_window.move(int(preview_x), int(preview_y))
+    
+    def _paint_preview(self, window):
+        """Paint the preview window"""
+        painter = QPainter(window)
+        painter.setRenderHint(QPainter.Antialiasing, True)
+        
+        w = float(window.width())
+        h = float(window.height())
+        
+        # Draw background with transparency
+        bg_path = QPainterPath()
+        radius = 6.0
+        bg_path.addRoundedRect(QRectF(0, 0, w, h), radius, radius)
+        
+        # Semi-transparent dark background
+        painter.fillPath(bg_path, QColor(20, 20, 25, 200))
+        
+        # Draw border
+        border_pen = painter.pen()
+        border_pen.setColor(QColor(100, 100, 120, 180))
+        border_pen.setWidthF(1.0)
+        painter.setPen(border_pen)
+        painter.drawPath(bg_path)
+        
+        # Draw text
+        from PySide6.QtGui import QFont, QPen
+        
+        font = QFont("Sans Serif", 10)
+        font.setItalic(True)  # Italic to indicate draft
+        painter.setFont(font)
+        
+        # Text color - lighter to indicate draft
+        text_pen = QPen(QColor(180, 180, 200, 230))
+        painter.setPen(text_pen)
+        
+        # Truncate text if needed
+        display_text = self._preview_text
+        if len(display_text) > 100:
+            display_text = display_text[:97] + "..."
+        
+        # Draw text with padding
+        from PySide6.QtCore import Qt
+        text_rect = QRectF(8, 5, w - 16, h - 10)
+        painter.drawText(text_rect, Qt.TextWordWrap, display_text)
+        
+        # Draw status indicator if set
+        if self._streaming_status:
+            status_font = QFont("Sans Serif", 8)
+            status_font.setItalic(False)
+            painter.setFont(status_font)
+            status_pen = QPen(QColor(100, 200, 150, 200))
+            painter.setPen(status_pen)
+            painter.drawText(QRectF(8, h - 18, w - 16, 15), Qt.AlignLeft, self._streaming_status)
+        
+        painter.end()
 
 
 def main():
@@ -1328,6 +1543,31 @@ def main():
         print("Developer: Rehan")
         print("License: MIT (see LICENSE file)")
         print("")
+        
+        # Display server detection
+        display_server = detect_display_server()
+        print(f"Display server: {display_server}")
+        if display_server == "wayland":
+            print("Running on Wayland - using pynput backend for hotkeys")
+            # Check Wayland dependencies
+            try:
+                from wayland_backend import get_wayland_dependencies_status, print_wayland_setup_instructions
+                deps = get_wayland_dependencies_status()
+                missing = [k for k, v in deps.items() if not v and k in ('wl_clipboard', 'pynput')]
+                if missing:
+                    print("")
+                    print("Warning: Some Wayland dependencies are missing:")
+                    for dep in missing:
+                        print(f"  - {dep}")
+                    print("Run with --wayland-deps for installation instructions.")
+            except ImportError:
+                pass
+        elif display_server == "x11":
+            print("Running on X11 - using native X11 backend")
+        else:
+            print("Display server unknown - using fallback backends")
+        print("")
+        
         print(f"Hold '{hotkey}' to record; release to send audio for transcription.")
         print(
             f"Smart dictation: {'on' if SMART_EDIT else 'off'} "
@@ -1341,6 +1581,10 @@ def main():
         print(f"Dictation mode: {DICTATION_MODE} (cleanup={CLEANUP_LEVEL})")
         print(f"Audio: {SR}Hz, channels={CHANNELS}, trim_silence={'on' if TRIM_SILENCE else 'off'}")
         print(f"Instant refine: {'on' if INSTANT_REFINE else 'off'}")
+        print(f"Streaming transcription: {'on' if STREAMING_ENABLED else 'off'}")
+        if STREAMING_ENABLED:
+            print(f"  Chunk duration: {STREAMING_CHUNK_DURATION}s, overlap: {STREAMING_CHUNK_OVERLAP}s")
+            print(f"  Final pass: {'on' if STREAMING_FINAL_PASS else 'off'}")
         if SMART_EDIT and RESET_TRANSCRIPT_EACH_RECORDING:
             print("Transcript reset mode: per recording")
         elif SMART_EDIT:
@@ -1366,6 +1610,31 @@ def main():
         print(f"Failed to initialize GUI: {ex}", file=sys.stderr)
         return
     transcript_state = TranscriptState()
+    
+    # Initialize streaming transcription components if enabled
+    streaming_transcriber = None
+    chunked_buffer = None
+    partial_text = ""
+    streaming_lock = threading.Lock()
+    
+    if STREAMING_ENABLED:
+        try:
+            streaming_transcriber = DualPassTranscriber(
+                StreamingTranscriber(model=GROQ_WHISPER_MODEL),
+                final_pass_enabled=STREAMING_FINAL_PASS
+            )
+            chunked_buffer = ChunkedAudioBuffer(
+                sample_rate=SR,
+                channels=CHANNELS,
+                chunk_duration=STREAMING_CHUNK_DURATION,
+                chunk_overlap=STREAMING_CHUNK_OVERLAP,
+                min_chunks=STREAMING_MIN_CHUNKS
+            )
+            print("Streaming transcription initialized")
+        except Exception as ex:
+            print(f"Warning: Failed to initialize streaming: {ex}", file=sys.stderr)
+            streaming_transcriber = None
+            chunked_buffer = None
 
     def _stop_active_recording():
         if not recorder._running.is_set():
@@ -1439,6 +1708,51 @@ def main():
                 transcript_state.segments.clear()
                 transcript_state.output_text = ""
         print("Start recording")
+        
+        # Reset streaming state
+        nonlocal partial_text
+        partial_text = ""
+        
+        # Start streaming transcription if enabled
+        streaming_active = False
+        if streaming_transcriber and chunked_buffer:
+            try:
+                # Check if streaming is healthy
+                health = streaming_transcriber.streaming.get_health()
+                if health.fallback_mode:
+                    print("Streaming in fallback mode - using batch transcription", file=sys.stderr)
+                else:
+                    chunked_buffer.start_recording()
+                    
+                    def on_partial_result(result: StreamingResult):
+                        nonlocal partial_text
+                        with streaming_lock:
+                            partial_text = result.text
+                        # Update GUI preview
+                        try:
+                            gui.update_preview(result.text, "Streaming...")
+                        except Exception:
+                            pass
+                    
+                    def on_streaming_error(error: str):
+                        nonlocal streaming_active
+                        print(f"Streaming error: {error}", file=sys.stderr)
+                        # Check if we should fall back
+                        health = streaming_transcriber.streaming.get_health()
+                        if health.fallback_mode:
+                            streaming_active = False
+                            try:
+                                gui.update_preview("", "Streaming paused - using batch mode")
+                            except Exception:
+                                pass
+                    
+                    streaming_transcriber.set_partial_callback(on_partial_result)
+                    streaming_transcriber.start()
+                    streaming_active = True
+            except Exception as ex:
+                print(f"Failed to start streaming: {ex}", file=sys.stderr)
+                streaming_active = False
+        
         try:
             gui.show(("record", "Recording..."))
         except Exception:
@@ -1462,11 +1776,27 @@ def main():
         if not recorder._running.is_set():
             return
         print("Stop recording")
+        
+        # Hide preview and show processing state
+        try:
+            gui.hide_preview()
+            gui.update(("processing", "Processing audio..."))
+        except Exception:
+            pass
+        
+        # Finalize streaming and get full audio
+        full_audio = None
+        if chunked_buffer:
+            full_audio, remaining_chunks = chunked_buffer.finalize()
+        
+        # Stop streaming transcriber
+        if streaming_transcriber:
+            streaming_transcriber.stop()
+        
         try:
             # save to temp file
             fd, path = tempfile.mkstemp(suffix=".wav")
             os.close(fd)
-            gui.update("Stopping... saving audio")
             audio_path = recorder.stop(path)
         except Exception as ex:
             print("Recording error:", ex, file=sys.stderr)
@@ -1481,8 +1811,25 @@ def main():
             try:
                 if shutdown_event.is_set():
                     return
-                gui.update(("processing", "Processing audio..."))
-                text = transcribe_with_groq(audio_path)
+                
+                # Use streaming result if available, otherwise fall back to batch
+                if streaming_transcriber and full_audio is not None and len(full_audio) > 0:
+                    gui.update(("processing", "Finalizing..."))
+                    
+                    # Run final pass on complete audio
+                    text = streaming_transcriber.finalize(full_audio)
+                    
+                    # If no final pass or it failed, use partial text
+                    if not text:
+                        with streaming_lock:
+                            text = partial_text
+                    
+                    if not text:
+                        text = "(no transcription returned)"
+                else:
+                    gui.update(("processing", "Processing audio..."))
+                    text = transcribe_with_groq(audio_path)
+                
                 if not text:
                     text = "(no transcription returned)"
                 print("Transcription:\n", text)
@@ -1502,14 +1849,28 @@ def main():
                     print("Fast transcript:\n", fast_out if fast_out else "(empty)")
 
                 # Check mode - if in agent mode, format differently
+                # Support both manual mode and auto-detection
                 mode = os.getenv("MODE", "dictation").strip().lower()
+                
+                # Auto-detect agent mode if enabled
+                if AGENT_AUTO_DETECT and mode != "agent":
+                    from agent_formatter import ModeDetector
+                    detector = ModeDetector()
+                    detected_mode = detector.detect_mode(text)
+                    if detected_mode == "agent":
+                        mode = "agent"
+                        print("Auto-detected agent mode from speech content")
 
                 # Determine final output after all processing
                 if mode == "agent":
                     # Format for agent consumption
                     from agent_formatter import AgentFormatter
                     formatter = AgentFormatter()
-                    refined_out = formatter.format_for_agent(fast_out, mode="structured")
+                    output_format = AGENT_OUTPUT_FORMAT if AGENT_OUTPUT_FORMAT in ("structured", "markdown", "plain") else "structured"
+                    refined_out = formatter.format_for_agent(fast_out, mode=output_format)
+                    
+                    # Get structured info for metadata
+                    structured_info = formatter.extract_structured_info(text)
 
                     # Copy to clipboard as formatted agent prompt
                     try:
@@ -1518,9 +1879,29 @@ def main():
                     except Exception:
                         gui.set_clipboard_text(refined_out)
 
-                    # Optionally post to webhook if configured
-                    webhook_url = os.getenv("AGENT_WEBHOOK_URL")
-                    if webhook_url:
+                    # Send to IDE integration if enabled
+                    if AGENT_IDE_INTEGRATION:
+                        try:
+                            from ide_integration import get_integration_manager
+                            manager = get_integration_manager(AGENT_WEBHOOK_URL)
+                            manager.enable(AGENT_WEBHOOK_URL)
+                            
+                            metadata = {
+                                'priority': structured_info.priority,
+                                'complexity': structured_info.complexity,
+                                'language': structured_info.language,
+                                'frameworks': structured_info.frameworks,
+                                'files': structured_info.files_locations,
+                            }
+                            
+                            sent = manager.send_agent_task(refined_out, metadata)
+                            if sent:
+                                print("Sent task to IDE integration")
+                        except Exception as e:
+                            print(f"IDE integration error: {e}", file=sys.stderr)
+                    
+                    # Optionally post to webhook if configured (and IDE integration not used)
+                    elif AGENT_WEBHOOK_URL:
                         import threading
                         def send_webhook():
                             try:
@@ -1531,11 +1912,18 @@ def main():
                                 data = {
                                     'prompt': refined_out,
                                     'timestamp': time.time(),
-                                    'source': 'dictapilot'
+                                    'source': 'dictapilot',
+                                    'metadata': {
+                                        'priority': structured_info.priority,
+                                        'complexity': structured_info.complexity,
+                                        'language': structured_info.language,
+                                        'frameworks': structured_info.frameworks,
+                                        'files': structured_info.files_locations,
+                                    }
                                 }
 
                                 req = urllib.request.Request(
-                                    webhook_url,
+                                    AGENT_WEBHOOK_URL,
                                     data=json.dumps(data).encode('utf-8'),
                                     headers={'Content-Type': 'application/json'}
                                 )
@@ -1675,6 +2063,13 @@ def main():
                     gui.show(("done", snippet))
                 except Exception:
                     pass
+                
+                # Reset streaming health for next recording (recovery)
+                if streaming_transcriber:
+                    try:
+                        streaming_transcriber.reset()
+                    except Exception:
+                        pass
 
                 # keep the done window visible briefly then return to idle
                 time.sleep(1.5)
@@ -1725,11 +2120,30 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="DictaPilot - Press-and-hold dictation")
     parser.add_argument("--tray", action="store_true", help="Run with system tray")
+    parser.add_argument("--gui", action="store_true", help="Launch settings dashboard")
     parser.add_argument("--export", type=str, metavar="FILE", help="Export all transcriptions to a text file")
     parser.add_argument("--list", action="store_true", help="List recent transcriptions")
     parser.add_argument("--stats", action="store_true", help="Show transcription statistics")
     parser.add_argument("--search", type=str, metavar="QUERY", help="Search transcriptions")
+    parser.add_argument("--wayland-deps", action="store_true", help="Show Wayland dependency installation instructions")
     args = parser.parse_args()
+    
+    if args.gui:
+        try:
+            from settings_dashboard import run_dashboard
+            sys.exit(run_dashboard() or 0)
+        except ImportError as e:
+            print(f"Error: Could not launch settings dashboard: {e}")
+            print("Make sure PySide6 is installed: pip install PySide6")
+            sys.exit(1)
+
+    if args.wayland_deps:
+        try:
+            from wayland_backend import print_wayland_setup_instructions
+            print_wayland_setup_instructions()
+        except ImportError:
+            print("Wayland backend module not available")
+        sys.exit(0)
 
     if args.export:
         from transcription_store import export_all_to_text

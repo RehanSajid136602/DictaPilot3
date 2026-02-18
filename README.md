@@ -1,4 +1,4 @@
-# DictaPilot
+# DictaPilot3
 
 ![DictaPilot](Dictepilot.png)
 
@@ -6,253 +6,254 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 ![Platform: Windows | macOS | Linux](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgray.svg)
 
-Cross-platform press-and-hold dictation with smart editing. Hold a hotkey, speak, release, and DictaPilot transcribes and pastes into the currently focused text field.
+**Cross-platform voice dictation with smart editing.** Hold a hotkey, speak, release—your words appear instantly with intelligent cleanup and voice commands.
 
-## What You Get
+## ✨ Key Features
 
-- Hold-to-record workflow (`f9` by default)
-- Smart voice commands like `delete that`, `clear all`, `ignore`, `replace X with Y`
-- Delta paste mode to update only changed text
-- Persistent transcription history with search/export CLI
-- Linux, macOS, and Windows startup scripts included
+- **Hold-to-Talk** - Press F9, speak, release. That's it.
+- **Real-Time Streaming** - See your words appear as you speak with live preview
+- **Smart Voice Commands** - "delete that", "replace X with Y", "rewrite formal"
+- **Delta Paste** - Only sends changed characters, not full text (faster, less flicker)
+- **Context-Aware** - Different settings per application
+- **Developer-Focused** - Agent mode for coding workflows
+- **Privacy-First** - Local storage, open source
 
-## Current Status
+## 🚀 Quick Start
 
-DictaPilot is currently terminal-first.
-
-- No full desktop GUI yet (no settings dashboard or manager app).
-- No Dory assistant integration yet.
-- No visual onboarding wizard yet.
-
-What exists today:
-- CLI + global hotkey workflow.
-- Optional lightweight floating status overlay and tray flow.
-
-UI and Dory-related features are planned and will be added in future releases.
-
-## 5-Minute Setup
-
-1. Clone the repo:
+**Get started in under 5 minutes:**
 
 ```bash
+# 1. Clone repository
 git clone https://github.com/RehanSajid136602/DictaPilot.git
 cd DictaPilot
-```
 
-2. Run your OS setup script:
+# 2. Run setup script
+./setup/setup_linux.sh      # Linux
+./setup/setup_macos.command  # macOS
+setup\setup_windows.bat      # Windows
 
-- Windows: `setup\setup_windows.bat`
-- Linux: `./setup/setup_linux.sh`
-- macOS: `./setup/setup_macos.command`
+# 3. Add API key to .env
+echo "GROQ_API_KEY=your_key_here" > .env
 
-3. Set your Groq API key:
-
-- Open `.env`
-- Set `GROQ_API_KEY=your_real_key`
-
-4. Start DictaPilot:
-
-```bash
+# 4. Start dictating
 python app.py
 ```
 
-5. Use it:
+**Get your free API key:** [console.groq.com](https://console.groq.com)
 
-- Focus any text input field
-- Hold `F9` to record
-- Release `F9` to transcribe and paste
+**Detailed guide:** [Quick Start Guide](docs/quick-start.md)
 
-## One-Click Start (Portable Scripts)
+## 📖 Documentation
 
-If setup is already done, use:
+### Getting Started
+- **[Quick Start Guide](docs/quick-start.md)** - 5-step setup (< 5 minutes)
+- **[Voice Commands](docs/voice-commands.md)** - Complete command reference
+- **[Troubleshooting](docs/troubleshooting.md)** - Common issues and solutions
+- **[FAQ](docs/faq.md)** - Frequently asked questions
 
-- Windows: `portable-start/start_windows.bat`
-- Linux: `portable-start/start_linux.sh`
-- macOS: `portable-start/start_macos.command`
+### Platform Guides
+- **[Linux Setup](docs/platform-guides/linux.md)** - X11/Wayland, backends, permissions
+- **[macOS Setup](docs/platform-guides/macos.md)** - Accessibility, Keychain, backends
+- **[Windows Setup](docs/platform-guides/windows.md)** - Permissions, backends, troubleshooting
 
-Details: `portable-start/README.txt`
+### For Developers
+- **[Architecture](docs/developer/architecture.md)** - System design overview
+- **[API Reference](docs/developer/api-reference.md)** - Public API documentation
+- **[Contributing Guide](docs/developer/contributing.md)** - Development setup and guidelines
 
-## Start at Login (Optional)
+## 🎯 How It Works
 
-Use these scripts to register auto-start and launch now:
-
-- Windows: `auto_start/autostart_windows.bat`
-- Linux: `auto_start/autostart_linux.sh`
-- macOS: `auto_start/autostart_macos.command`
-
-Details: `auto_start/README.txt`
-
-## CLI Commands
-
-```bash
-# List recent transcriptions
-python app.py --list
-
-# View storage statistics
-python app.py --stats
-
-# Search transcriptions
-python app.py --search "meeting notes"
-
-# Export transcriptions to a text file
-python app.py --export my_transcriptions.txt
+```
+1. Hold F9 → Start recording
+2. Speak naturally → Audio captured, streaming preview appears
+3. Release F9 → Final transcription begins
+4. Smart editing → Commands processed, text cleaned
+5. Auto-paste → Text appears in your app
 ```
 
-## Smart Dictation Commands
+**Example:**
+```
+You say: "Hello world... um... delete that... Goodbye world"
+Result: "Goodbye world"
+```
 
-| Spoken Command | Action |
-|---|---|
-| `delete that`, `undo`, `scratch that` | Remove last segment |
-| `clear all`, `reset`, `start over` | Clear full transcript |
-| `ignore`, `skip`, `don't include` | Ignore this utterance |
-| `replace X with Y` | Replace phrase in transcript |
+**Real-Time Streaming:**
+As you speak, a preview window shows your transcription in real-time. When you release the hotkey, a final accuracy pass ensures the best possible transcription quality.
 
-## Environment Variables
+## 🎤 Voice Commands
 
-`GROQ_API_KEY` is the only required variable. Everything else is optional.
+| Command | Action |
+|---------|--------|
+| `delete that` | Remove last segment |
+| `clear all` | Clear everything |
+| `replace X with Y` | Replace text |
+| `rewrite formal` | Change tone |
+| `fix grammar` | Correct grammar |
+| `ignore` | Skip this utterance |
 
-### Core
+**See all commands:** [Voice Commands Reference](docs/voice-commands.md)
 
-| Variable | Default | Notes |
-|---|---|---|
-| `GROQ_API_KEY` | _(required)_ | Groq API key |
-| `HOTKEY` | `f9` | Hold-to-record key |
-| `SMART_EDIT` | `1` | Smart editing on/off (`1`/`0`) |
-| `SMART_MODE` | `llm` | `llm` or `heuristic` |
-| `LLM_ALWAYS_CLEAN` | `1` | In `llm` mode: always clean vs intent-only |
+## ⚙️ Configuration
+
+**Minimal setup:**
+```bash
+GROQ_API_KEY=your_key_here  # Required
+HOTKEY=f9                   # Optional (default: f9)
+```
+
+**Common options:**
+```bash
+SMART_MODE=llm              # llm (accurate) or heuristic (fast)
+PASTE_MODE=delta            # delta (fast) or full
+DICTATION_MODE=accurate     # speed, balanced, or accurate
+CLEANUP_LEVEL=aggressive    # basic, balanced, or aggressive
+```
+
+**40+ configuration options available.** See [Configuration Reference](#environment-variables) below.
+
+## 🛠️ CLI Commands
+
+```bash
+python app.py --list              # List recent transcriptions
+python app.py --stats             # View statistics
+python app.py --search "query"    # Search transcriptions
+python app.py --export file.txt   # Export to text file
+```
+
+## 🐛 Troubleshooting
+
+**Hotkey not working?**
+- Linux (X11): Try `HOTKEY_BACKEND=x11`
+- Linux (Wayland): Try `HOTKEY_BACKEND=wayland` or `HOTKEY_BACKEND=pynput`
+- macOS: Grant Accessibility permission
+- Windows: Try running as administrator
+
+**Text not pasting?**
+- Linux (X11): Install xdotool: `sudo apt install xdotool`
+- Linux (Wayland): Install wl-clipboard: `sudo apt install wl-clipboard wtype`
+- macOS: Use `PASTE_BACKEND=osascript`
+- Windows: Try `PASTE_BACKEND=pynput`
+
+**Check Wayland dependencies:**
+```bash
+python app.py --wayland-deps
+```
+
+**More help:** [Troubleshooting Guide](docs/troubleshooting.md)
+
+## 🗺️ Roadmap
+
+**Phase 1 - Critical Foundations:**
+- ✅ Improved documentation (in progress)
+- ✅ Real-time streaming transcription
+- ✅ Wayland support for Linux
+- ⏳ Modern GUI dashboard
+
+**Phase 2 - Competitive Advantages:**
+- Enhanced agent mode with IDE integration
+- Advanced delta paste optimization
+- Context-aware profile enhancements
+
+**Phase 3 - Mobile & Expansion:**
+- Android companion app
+- Optional cloud sync
+
+**Full roadmap:** [plan.md](plan.md)
+
+## 🤝 Contributing
+
+We welcome contributions! See [Contributing Guide](docs/developer/contributing.md) for:
+- Development setup
+- Code style guidelines
+- Testing requirements
+- PR process
+
+## 📦 Building Packages
+
+```bash
+./packaging/build_linux.sh        # Linux AppImage
+./packaging/build_deb.sh          # Debian package
+./packaging/build_macos.sh        # macOS bundle
+.\packaging\build_windows.ps1     # Windows installer
+```
+
+## 🔧 Environment Variables
+
+### Core Settings
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `GROQ_API_KEY` | _(required)_ | Groq API key from console.groq.com |
+| `HOTKEY` | `f9` | Global hotkey for recording |
+| `SMART_EDIT` | `1` | Enable smart editing (1/0) |
+| `SMART_MODE` | `llm` | Editing mode: `llm` or `heuristic` |
+| `PASTE_MODE` | `delta` | Paste mode: `delta` or `full` |
+
+### Audio Settings
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `SAMPLE_RATE` | `16000` | Recording sample rate (Hz) |
+| `AUDIO_DEVICE` | _(auto)_ | Audio device index |
+| `TRIM_SILENCE` | `1` | Trim silence from recordings |
+
+### Streaming Transcription
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `STREAMING_ENABLED` | `1` | Enable real-time streaming preview |
+| `STREAMING_CHUNK_DURATION` | `1.5` | Audio chunk duration in seconds |
+| `STREAMING_CHUNK_OVERLAP` | `0.3` | Overlap between chunks for accuracy |
+| `STREAMING_MIN_CHUNKS` | `2` | Minimum chunks before showing preview |
+| `STREAMING_FINAL_PASS` | `1` | Run final accuracy pass on complete audio |
+
+**Streaming vs Batch Mode:**
+- **Streaming** (default): See words as you speak, final accuracy pass ensures quality
+- **Batch** (set `STREAMING_ENABLED=0`): Traditional mode - only transcribes after you release
+
+### Backend Selection
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `HOTKEY_BACKEND` | `auto` | Hotkey backend: `auto`, `keyboard`, `pynput`, `x11`, `wayland` |
+| `PASTE_BACKEND` | `auto` | Paste backend: `auto`, `keyboard`, `pynput`, `xdotool`, `x11`, `wayland`, `osascript` |
+| `DISPLAY_SERVER` | `auto` | Display server override: `auto`, `x11`, `wayland` |
+
+### Advanced Settings
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DICTATION_MODE` | `accurate` | Mode: `speed`, `balanced`, `accurate` |
+| `CLEANUP_LEVEL` | `aggressive` | Cleanup: `basic`, `balanced`, `aggressive` |
+| `INSTANT_REFINE` | `1` | Fast paste then background refinement |
 | `GROQ_WHISPER_MODEL` | `whisper-large-v3-turbo` | Transcription model |
-| `GROQ_CHAT_MODEL` | `openai/gpt-oss-120b` | Cleanup model in `llm` mode |
 
-### Paste and Input Backends
+**See all 40+ options:** Check `.env.example` or [Configuration Guide](docs/quick-start.md#configuration)
 
-| Variable | Default | Notes |
-|---|---|---|
-| `PASTE_MODE` | `delta` | `delta` or `full` |
-| `PASTE_POLICY` | `final_only` | `final_only` or `live_preview` |
-| `PASTE_BACKEND` | `auto` | `auto`, `keyboard`, `pynput`, `xdotool`, `x11`, `osascript` |
-| `HOTKEY_BACKEND` | `auto` | `auto`, `keyboard`, `pynput`, `x11` |
-
-### Audio and Processing
-
-| Variable | Default | Notes |
-|---|---|---|
-| `SAMPLE_RATE` | `16000` | Recording sample rate |
-| `CHANNELS` | `1` | Number of channels |
-| `TRIM_SILENCE` | `1` | Trim silence before transcription |
-| `SILENCE_THRESHOLD` | `0.02` | Trim sensitivity |
-| `INSTANT_REFINE` | `1` | Fast first paste then refinement |
-| `DICTATION_MODE` | `accurate` | `speed`, `balanced`, `accurate` |
-| `CLEANUP_LEVEL` | `aggressive` | `basic`, `balanced`, `aggressive` |
-| `CLEANUP_STRICTNESS` | `balanced` | `conservative`, `balanced`, `aggressive` |
-| `CONFIDENCE_THRESHOLD` | `0.65` | Used by cleanup guardrails |
-
-### Profiles and Personalization
-
-| Variable | Default | Notes |
-|---|---|---|
-| `ACTIVE_PROFILE` | `default` | Active profile ID |
-| `PROFILE_BUNDLE_PATH` | platform path | Custom profile bundle path |
-| `ACTIVE_APP` | _(unset)_ | Force app context |
-| `DEFAULT_TONE` | `polite` | Fallback tone |
-| `DEFAULT_LANGUAGE` | `english` | Fallback language |
-| `PERSONAL_DICTIONARY_PATH` | platform path | Custom dictionary path |
-| `SNIPPETS_PATH` | platform path | Custom snippets path |
-| `USER_ADAPTATION` | `1` | Enable adaptive correction memory |
-
-### Floating Overlay / Behavior
-
-These variables tune the lightweight floating overlay and runtime behavior, not a full GUI application.
-
-| Variable | Default | Notes |
-|---|---|---|
-| `RESET_TRANSCRIPT_EACH_RECORDING` | `1` | Reset transcript on each hold/release |
-| `FLOATING_WIDTH` | `148` | Floating widget width |
-| `FLOATING_HEIGHT` | `36` | Floating widget height |
-| `FLOATING_BAR_COUNT` | `5` | Number of level bars (clamped to 3-6) |
-| `FLOATING_CLOSE_BUTTON` | `1` | Show floating close button |
-| `FLOATING_THEME` | `professional_minimal` | `professional_minimal` or `high_contrast` |
-| `FLOATING_MOTION_PROFILE` | `expressive` | `expressive`, `balanced`, or `reduced` |
-| `FLOATING_GLOW_INTENSITY` | `1.0` | Glow strength multiplier (`0.0` to `1.6`) |
-| `FLOATING_BAR_RADIUS` | `1.0` | Bar roundness multiplier (`0.5` to `1.5`) |
-| `FLOATING_BORDER_ALPHA` | `72` | Floating shell border opacity (`8` to `255`) |
-
-Profile bundle reference: `docs/profile-ingestion-spec.md`
-
-## Storage Paths
+## 📂 Storage Locations
 
 | Data | Linux/macOS | Windows |
-|---|---|---|
-| Transcriptions | `~/.local/share/dictapilot/transcriptions.json` | `%APPDATA%\DictaPilot\transcriptions.json` |
-| Config | `~/.config/dictapilot/config.json` | `%APPDATA%\DictaPilot\config.json` |
-| Profiles | `~/.config/dictapilot/profile_bundle.json` | `%APPDATA%\DictaPilot\profile_bundle.json` |
+|------|-------------|---------|
+| Transcriptions | `~/.local/share/dictapilot/` | `%APPDATA%\DictaPilot\` |
+| Configuration | `~/.config/dictapilot/` | `%APPDATA%\DictaPilot\` |
 
-## Troubleshooting
+## 📄 License
 
-### Linux
+MIT License - see [LICENSE](LICENSE) file.
 
-- Install `xdotool` if needed: `sudo apt install xdotool`
-- If global hotkey fails, try `HOTKEY_BACKEND=x11` or `HOTKEY_BACKEND=pynput`
-- If paste fails, try `PASTE_BACKEND=x11` or `PASTE_BACKEND=xdotool`
+## 🙏 Credits
 
-### macOS
+**Original Author:** [Rohan Sharvesh](https://github.com/RohanSharvesh)  
+**Fork Maintainer:** Rehan  
+**Original Project:** [WhisperGroq](https://github.com/rohansharvesh/WhisperGroq)
 
-- Grant Accessibility permission to Terminal/iTerm
-- If paste/hotkey fails, test `PASTE_BACKEND=osascript`
+## 🔗 Links
 
-### Windows
+- **Documentation:** [docs/](docs/)
+- **Issues:** [GitHub Issues](https://github.com/RehanSajid136602/DictaPilot/issues)
+- **Discussions:** Coming soon
+- **Discord:** Planned
 
-- Run terminal as normal user (not admin unless required by keyboard hook behavior)
-- If hotkey behavior is inconsistent, try `HOTKEY_BACKEND=pynput`
+---
 
-### General
-
-- API error: check `GROQ_API_KEY`
-- No audio: confirm microphone permissions and selected input device
-- Quick health check:
-
-```bash
-python app.py --stats
-```
-
-## Roadmap Snapshot
-
-Planned milestones:
-
-- Full desktop UI for settings and profile management.
-- Dory integration and related assistant workflows.
-- Guided onboarding flow for first-time setup.
-
-Current releases remain focused on stable terminal-first dictation.
-
-## Build Packages
-
-```bash
-# Linux AppImage
-./packaging/build_linux.sh
-
-# Linux .deb
-./packaging/build_deb.sh
-
-# macOS zip
-./packaging/build_macos.sh
-
-# Windows zip (PowerShell)
-.\packaging\build_windows.ps1
-```
-
-## Testing
-
-```bash
-pytest -q tests/test_smart_editor.py
-python3 scripts/eval_smart_editor.py
-```
-
-## About This Fork
-
-This is a maintained fork of DictaPilot by [Rohan Sharvesh](https://github.com/RohanSharvesh), with additional reliability and usability improvements by Rehan.
-
-Original project: https://github.com/rohansharvesh/WhisperGroq
-
-## License
-
-MIT. See `LICENSE`.
+**Made with ❤️ for developers who prefer speaking to typing.**

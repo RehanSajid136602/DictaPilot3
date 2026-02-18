@@ -1,0 +1,22 @@
+# Development dependencies
+pytest>=7.4.0
+pytest-cov>=4.1.0
+pytest-mock>=3.11.1
+
+# Documentation
+mkdocs>=1.5.0
+mkdocs-material>=9.4.0
+pymdown-extensions>=10.3.0
+
+# Code quality
+black>=23.7.0
+flake8>=6.1.0
+mypy>=1.5.0
+
+# Testing
+coverage>=7.3.0
+
+# Wayland support (optional)
+# PyGObject is optional for XDG portal integration on Wayland
+# Install with: pip install PyGObject (requires system glib libraries)
+# pygobject>=3.42.0
