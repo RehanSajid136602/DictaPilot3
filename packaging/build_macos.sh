@@ -1,12 +1,18 @@
 #!/usr/bin/env bash
 #
 # Build script for macOS
-# Creates a single-file DictaPilot binary (not .app bundle for simplicity)
+# Creates a single-file DictaPilot binary using PyInstaller spec file
 #
 
 set -e
 
 echo "=== DictaPilot macOS Build ==="
+
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+
+cd "$PROJECT_ROOT"
 
 # Check Python
 if ! command -v python3 &> /dev/null; then
@@ -16,40 +22,17 @@ fi
 
 # Install PyInstaller if needed
 echo "Ensuring PyInstaller is installed..."
-pip3 install pyinstaller --quiet 2>/dev/null || pip install pyinstaller --quiet
+python3 -m pip install pyinstaller --quiet 2>/dev/null || true
 
 # Clean previous build
 if [ -d "dist" ]; then
     echo "Cleaning previous build..."
-    rm -rf dist
+    rm -rf dist build
 fi
 
-# Build
+# Build using spec file
 echo "Building DictaPilot..."
-pyinstaller \
-    --onefile \
-    --name DictaPilot \
-    --console \
-    --clean \
-    --noconfirm \
-    --distpath "dist" \
-    --workpath "build" \
-    --specpath "packaging" \
-    --collect-all sounddevice \
-    --collect-all soundfile \
-    --collect-all groq \
-    --collect-all keyboard \
-    --collect-all pynput \
-    --collect-all dotenv \
-    --hidden-import sounddevice \
-    --hidden-import soundfile \
-    --hidden-import groq \
-    --hidden-import keyboard \
-    --hidden-import pynput \
-    --hidden-import pynput.keyboard \
-    --hidden-import pynput.mouse \
-    --hidden-import dotenv \
-    app.py
+python3 -m PyInstaller packaging/DictaPilot.spec --clean --noconfirm
 
 if [ $? -eq 0 ]; then
     echo ""

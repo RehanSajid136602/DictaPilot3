@@ -1,12 +1,18 @@
 #!/usr/bin/env pwsh
 <#
 # Build script for Windows
-# Creates a single-file DictaPilot.exe
+# Creates a single-file DictaPilot.exe using PyInstaller spec file
 #
 
 $ErrorActionPreference = "Stop"
 
 Write-Host "=== DictaPilot Windows Build ===" -ForegroundColor Cyan
+
+# Get the directory where this script is located
+$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$ProjectRoot = Split-Path -Parent $ScriptDir
+
+Set-Location $ProjectRoot
 
 # Check Python
 if (-not (Get-Command python -ErrorAction SilentlyContinue)) {
@@ -23,32 +29,14 @@ if (Test-Path "dist") {
     Remove-Item -Recurse -Force "dist" -ErrorAction SilentlyContinue
 }
 
-# Build
+# Clean build folder
+if (Test-Path "build") {
+    Remove-Item -Recurse -Force "build" -ErrorAction SilentlyContinue
+}
+
+# Build using spec file
 Write-Host "Building DictaPilot.exe..."
-pyinstaller `
-    --onefile `
-    --name DictaPilot `
-    --console `
-    --clean `
-    --noconfirm `
-    --distpath "dist" `
-    --workpath "build" `
-    --specpath "packaging" `
-    --collect-all sounddevice `
-    --collect-all soundfile `
-    --collect-all groq `
-    --collect-all keyboard `
-    --collect-all pynput `
-    --collect-all dotenv `
-    --hidden-import sounddevice `
-    --hidden-import soundfile `
-    --hidden-import groq `
-    --hidden-import keyboard `
-    --hidden-import pynput `
-    --hidden-import pynput.keyboard `
-    --hidden-import pynput.mouse `
-    --hidden-import dotenv `
-    app.py
+pyinstaller packaging/DictaPilot.spec --clean --noconfirm
 
 if ($LASTEXITCODE -eq 0) {
     Write-Host "`n=== Build Complete ===" -ForegroundColor Green
