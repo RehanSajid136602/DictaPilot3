@@ -46,6 +46,17 @@ from dotenv import load_dotenv
 load_dotenv()
 SETUP_COMPLETED = os.getenv("SETUP_COMPLETED", "0").strip() not in {"0", "false", "no", "off"}
 
+# Detect if running as PyInstaller frozen executable
+def is_frozen():
+    """Check if running as a frozen (packaged) executable."""
+    return getattr(sys, 'frozen', False)
+
+def get_bundle_dir():
+    """Get the directory where the bundled resources are located."""
+    if is_frozen():
+        return os.path.dirname(sys.executable)
+    return os.path.dirname(os.path.abspath(__file__))
+
 # Launch onboarding wizard if first run
 if not SETUP_COMPLETED and "--no-wizard" not in sys.argv and "--gui" not in sys.argv:
     try:
@@ -2128,7 +2139,9 @@ if __name__ == "__main__":
     parser.add_argument("--wayland-deps", action="store_true", help="Show Wayland dependency installation instructions")
     args = parser.parse_args()
     
-    if args.gui:
+    if args.gui or is_frozen():
+        # When running as packaged exe, show settings dashboard by default
+        # This ensures users see the main interface, not just the floating overlay
         try:
             from settings_dashboard import run_dashboard
             sys.exit(run_dashboard() or 0)

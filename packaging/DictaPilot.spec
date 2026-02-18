@@ -22,6 +22,8 @@ except NameError:
 datas = [
     (str(project_root / ".env.example"), "."),
     (str(project_root / "public" / "asset" / "logo.png"), "public/asset"),
+    (str(project_root / "LICENSE"), "."),
+    (str(project_root / "README.md"), "."),
 ]
 
 # Check if logo exists, add to datas if present
@@ -139,6 +141,21 @@ a = Analysis(
         'recorder',
         'app_context',
         'config',
+        'settings_dashboard',
+        'onboarding_wizard',
+        'secrets_manager',
+        'ide_integration',
+        'diff_utils',
+        'agent_formatter',
+        
+        # Audio modules
+        'audio.smoothing',
+        'audio.vad',
+        'audio.visualization_data',
+        
+        # Platform backends
+        'x11_backend',
+        'wayland_backend',
     ],
     hookspath=[],
     hooksconfig={},
