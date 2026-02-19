@@ -96,6 +96,33 @@ DEFAULT_CONFIG = {
     "agent_output_format": "structured",  # "structured", "markdown", "plain"
     "agent_webhook_url": "",  # webhook URL for agent integration
     "agent_ide_integration": False,  # enable IDE integration
+    # Spec mode settings
+    "spec_mode_enabled": True,
+    "spec_template": "standard",
+    "spec_auto_detect_intent": True,
+    "spec_format": "standard",
+    "spec_storage_enabled": True,
+    "agent_endpoints": "",
+    "workflow_format": "openspec",
+    # CLI behavior settings
+    "cli_auto_detect": True,
+    "cli_strip_newlines": True,
+    "cli_newline_keyword": "new line",
+    # Grammar settings
+    "grammar_preserve_code": True,
+    "grammar_preserve_technical": True,
+    # Dashboard preferences
+    "dashboard_sidebar_collapsed": False,
+    "dashboard_default_view": "home",
+    "dashboard_chart_time_range": "7days",
+    "use_legacy_ui": False,
+    # Modern UI/UX settings (2026 redesign)
+    "floating_ui_style": "modern",  # "modern" or "classic"
+    "floating_accent_color": "blue",  # "blue", "purple", "green"
+    "floating_glassmorphism": True,
+    "floating_animations": True,
+    "floating_reduced_motion": False,
+    "floating_layout": "pill",  # "circular", "pill", "card"
 }
 
 
@@ -142,6 +169,28 @@ class DictaPilotConfig:
     agent_output_format: str = "structured"  # "structured", "markdown", "plain"
     agent_webhook_url: str = ""  # webhook URL for agent integration
     agent_ide_integration: bool = False  # enable IDE integration
+    # Spec mode settings
+    spec_mode_enabled: bool = True  # enable specification-driven workflow
+    spec_template: str = "standard"  # "standard", "minimal", "detailed", "openspec", "luna", "github"
+    spec_auto_detect_intent: bool = True  # auto-detect spec vs code vs docs
+    spec_format: str = "standard"  # default export format
+    spec_storage_enabled: bool = True  # enable spec versioning
+    agent_endpoints: str = ""  # JSON string of IDE/agent webhook endpoints
+    workflow_format: str = "openspec"  # "openspec", "luna", "github-spec-kit"
+    # CLI behavior settings
+    cli_auto_detect: bool = True  # auto-detect CLI/terminal environments
+    cli_strip_newlines: bool = True  # strip newlines in CLI to prevent auto-enter
+    cli_newline_keyword: str = "new line"  # keyword to force newline in CLI
+    # Grammar settings
+    grammar_preserve_code: bool = True  # preserve code in grammar fixes
+    grammar_preserve_technical: bool = True  # preserve technical terms
+    # Modern UI/UX settings (2026 redesign)
+    floating_ui_style: str = "modern"  # "modern" or "classic"
+    floating_accent_color: str = "blue"  # "blue", "purple", "green"
+    floating_glassmorphism: bool = True
+    floating_animations: bool = True
+    floating_reduced_motion: bool = False
+    floating_layout: str = "pill"  # "circular", "pill", "card"
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
@@ -223,6 +272,28 @@ def load_config() -> DictaPilotConfig:
         "AGENT_OUTPUT_FORMAT": os.getenv("AGENT_OUTPUT_FORMAT"),
         "AGENT_WEBHOOK_URL": os.getenv("AGENT_WEBHOOK_URL"),
         "AGENT_IDE_INTEGRATION": os.getenv("AGENT_IDE_INTEGRATION"),
+        # Spec mode settings
+        "SPEC_MODE_ENABLED": os.getenv("SPEC_MODE_ENABLED"),
+        "SPEC_TEMPLATE": os.getenv("SPEC_TEMPLATE"),
+        "SPEC_AUTO_DETECT_INTENT": os.getenv("SPEC_AUTO_DETECT_INTENT"),
+        "SPEC_FORMAT": os.getenv("SPEC_FORMAT"),
+        "SPEC_STORAGE_ENABLED": os.getenv("SPEC_STORAGE_ENABLED"),
+        "AGENT_ENDPOINTS": os.getenv("AGENT_ENDPOINTS"),
+        "WORKFLOW_FORMAT": os.getenv("WORKFLOW_FORMAT"),
+        # CLI behavior settings
+        "CLI_AUTO_DETECT": os.getenv("CLI_AUTO_DETECT"),
+        "CLI_STRIP_NEWLINES": os.getenv("CLI_STRIP_NEWLINES"),
+        "CLI_NEWLINE_KEYWORD": os.getenv("CLI_NEWLINE_KEYWORD"),
+        # Grammar settings
+        "GRAMMAR_PRESERVE_CODE": os.getenv("GRAMMAR_PRESERVE_CODE"),
+        "GRAMMAR_PRESERVE_TECHNICAL": os.getenv("GRAMMAR_PRESERVE_TECHNICAL"),
+        # Modern UI/UX settings
+        "FLOATING_UI_STYLE": os.getenv("FLOATING_UI_STYLE"),
+        "FLOATING_ACCENT_COLOR": os.getenv("FLOATING_ACCENT_COLOR"),
+        "FLOATING_GLASSMORPHISM": os.getenv("FLOATING_GLASSMORPHISM"),
+        "FLOATING_ANIMATIONS": os.getenv("FLOATING_ANIMATIONS"),
+        "FLOATING_REDUCED_MOTION": os.getenv("FLOATING_REDUCED_MOTION"),
+        "FLOATING_LAYOUT": os.getenv("FLOATING_LAYOUT"),
     }
     
     for key, value in env_overrides.items():
@@ -319,6 +390,51 @@ def load_config() -> DictaPilotConfig:
                 config.agent_webhook_url = value
             elif key == "AGENT_IDE_INTEGRATION":
                 config.agent_ide_integration = value.lower() in ("1", "true", "yes")
+            # Spec mode settings
+            elif key == "SPEC_MODE_ENABLED":
+                config.spec_mode_enabled = value.lower() in ("1", "true", "yes")
+            elif key == "SPEC_TEMPLATE":
+                if value.lower() in ("standard", "minimal", "detailed", "openspec", "luna", "github"):
+                    config.spec_template = value.lower()
+            elif key == "SPEC_AUTO_DETECT_INTENT":
+                config.spec_auto_detect_intent = value.lower() in ("1", "true", "yes")
+            elif key == "SPEC_FORMAT":
+                config.spec_format = value.lower()
+            elif key == "SPEC_STORAGE_ENABLED":
+                config.spec_storage_enabled = value.lower() in ("1", "true", "yes")
+            elif key == "AGENT_ENDPOINTS":
+                config.agent_endpoints = value
+            elif key == "WORKFLOW_FORMAT":
+                if value.lower() in ("openspec", "luna", "github-spec-kit"):
+                    config.workflow_format = value.lower()
+            # CLI behavior settings
+            elif key == "CLI_AUTO_DETECT":
+                config.cli_auto_detect = value.lower() in ("1", "true", "yes")
+            elif key == "CLI_STRIP_NEWLINES":
+                config.cli_strip_newlines = value.lower() in ("1", "true", "yes")
+            elif key == "CLI_NEWLINE_KEYWORD":
+                config.cli_newline_keyword = value
+            # Grammar settings
+            elif key == "GRAMMAR_PRESERVE_CODE":
+                config.grammar_preserve_code = value.lower() in ("1", "true", "yes")
+            elif key == "GRAMMAR_PRESERVE_TECHNICAL":
+                config.grammar_preserve_technical = value.lower() in ("1", "true", "yes")
+            # Modern UI/UX settings
+            elif key == "FLOATING_UI_STYLE":
+                if value.lower() in ("modern", "classic"):
+                    config.floating_ui_style = value.lower()
+            elif key == "FLOATING_ACCENT_COLOR":
+                if value.lower() in ("blue", "purple", "green"):
+                    config.floating_accent_color = value.lower()
+            elif key == "FLOATING_GLASSMORPHISM":
+                config.floating_glassmorphism = value.lower() in ("1", "true", "yes")
+            elif key == "FLOATING_ANIMATIONS":
+                config.floating_animations = value.lower() in ("1", "true", "yes")
+            elif key == "FLOATING_REDUCED_MOTION":
+                config.floating_reduced_motion = value.lower() in ("1", "true", "yes")
+            elif key == "FLOATING_LAYOUT":
+                if value.lower() in ("circular", "pill", "card"):
+                    config.floating_layout = value.lower()
 
     return config
 
@@ -365,3 +481,25 @@ def apply_config_to_env(config: DictaPilotConfig) -> None:
     os.environ["AGENT_OUTPUT_FORMAT"] = config.agent_output_format
     os.environ["AGENT_WEBHOOK_URL"] = config.agent_webhook_url
     os.environ["AGENT_IDE_INTEGRATION"] = "1" if config.agent_ide_integration else "0"
+    # Spec mode settings
+    os.environ["SPEC_MODE_ENABLED"] = "1" if config.spec_mode_enabled else "0"
+    os.environ["SPEC_TEMPLATE"] = config.spec_template
+    os.environ["SPEC_AUTO_DETECT_INTENT"] = "1" if config.spec_auto_detect_intent else "0"
+    os.environ["SPEC_FORMAT"] = config.spec_format
+    os.environ["SPEC_STORAGE_ENABLED"] = "1" if config.spec_storage_enabled else "0"
+    os.environ["AGENT_ENDPOINTS"] = config.agent_endpoints
+    os.environ["WORKFLOW_FORMAT"] = config.workflow_format
+    # CLI behavior settings
+    os.environ["CLI_AUTO_DETECT"] = "1" if config.cli_auto_detect else "0"
+    os.environ["CLI_STRIP_NEWLINES"] = "1" if config.cli_strip_newlines else "0"
+    os.environ["CLI_NEWLINE_KEYWORD"] = config.cli_newline_keyword
+    # Grammar settings
+    os.environ["GRAMMAR_PRESERVE_CODE"] = "1" if config.grammar_preserve_code else "0"
+    os.environ["GRAMMAR_PRESERVE_TECHNICAL"] = "1" if config.grammar_preserve_technical else "0"
+    # Modern UI/UX settings
+    os.environ["FLOATING_UI_STYLE"] = config.floating_ui_style
+    os.environ["FLOATING_ACCENT_COLOR"] = config.floating_accent_color
+    os.environ["FLOATING_GLASSMORPHISM"] = "1" if config.floating_glassmorphism else "0"
+    os.environ["FLOATING_ANIMATIONS"] = "1" if config.floating_animations else "0"
+    os.environ["FLOATING_REDUCED_MOTION"] = "1" if config.floating_reduced_motion else "0"
+    os.environ["FLOATING_LAYOUT"] = config.floating_layout

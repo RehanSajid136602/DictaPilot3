@@ -184,6 +184,14 @@ FLOATING_BAR_RADIUS = _env_float("FLOATING_BAR_RADIUS", 1.0, 0.5, 1.5)
 FLOATING_BORDER_ALPHA = int(_env_float("FLOATING_BORDER_ALPHA", 72.0, 8.0, 255.0))
 FLOATING_WAVE_DEBUG = _env_flag("FLOATING_WAVE_DEBUG", "0")
 
+# Modern UI/UX settings (2026 redesign)
+FLOATING_UI_STYLE = os.getenv("FLOATING_UI_STYLE", "modern").strip().lower()
+FLOATING_ACCENT_COLOR = os.getenv("FLOATING_ACCENT_COLOR", "blue").strip().lower()
+FLOATING_GLASSMORPHISM = _env_flag("FLOATING_GLASSMORPHISM", "1")
+FLOATING_ANIMATIONS = _env_flag("FLOATING_ANIMATIONS", "1")
+FLOATING_REDUCED_MOTION = _env_flag("FLOATING_REDUCED_MOTION", "0")
+FLOATING_LAYOUT = os.getenv("FLOATING_LAYOUT", "pill").strip().lower()
+
 _VISUAL_STATE_BY_MODE = {
     "record": "record",
     "recording": "record",
@@ -193,6 +201,35 @@ _VISUAL_STATE_BY_MODE = {
     "complete": "done",
     "idle": "idle",
 }
+
+# Accent color palettes for modern UI
+_ACCENT_COLOR_PALETTES = {
+    "blue": {
+        "primary": "#3B82F6",
+        "light": "#60A5FA",
+        "dark": "#2563EB",
+        "glow": (59, 130, 246, 102),
+    },
+    "purple": {
+        "primary": "#8B5CF6",
+        "light": "#A78BFA",
+        "dark": "#7C3AED",
+        "glow": (139, 92, 246, 102),
+    },
+    "green": {
+        "primary": "#10B981",
+        "light": "#34D399",
+        "dark": "#059669",
+        "glow": (16, 185, 129, 102),
+    },
+}
+
+if FLOATING_ACCENT_COLOR not in _ACCENT_COLOR_PALETTES:
+    FLOATING_ACCENT_COLOR = "blue"
+if FLOATING_UI_STYLE not in {"modern", "classic"}:
+    FLOATING_UI_STYLE = "modern"
+if FLOATING_LAYOUT not in {"circular", "pill", "card"}:
+    FLOATING_LAYOUT = "pill"
 
 _FLOATING_THEME_PRESETS = {
     "professional_minimal": {
@@ -372,6 +409,10 @@ def _resolve_theme(theme_name: str) -> dict:
 
 def _resolve_motion_profile(profile_name: str) -> dict:
     return _MOTION_PROFILE_PRESETS.get(profile_name, _MOTION_PROFILE_PRESETS["expressive"])
+
+
+def _resolve_accent_color(color_name: str) -> dict:
+    return _ACCENT_COLOR_PALETTES.get(color_name, _ACCENT_COLOR_PALETTES["blue"])
 
 
 def _compute_bar_target(
@@ -853,6 +894,22 @@ class GUIManager:
 
         self._mode = "idle"
         self._display_text = "Ready"
+        
+        # Modern UI settings
+        self._ui_style = FLOATING_UI_STYLE
+        self._accent_color = _resolve_accent_color(FLOATING_ACCENT_COLOR)
+        self._glassmorphism_enabled = FLOATING_GLASSMORPHISM
+        self._animations_enabled = FLOATING_ANIMATIONS
+        self._reduced_motion = FLOATING_REDUCED_MOTION
+        self._layout_style = FLOATING_LAYOUT
+        
+        # Animation state for modern UI
+        self._breathing_phase = 0.0
+        self._pulse_phase = 0.0
+        self._glow_intensity_current = 0.0
+        self._state_transition_progress = 1.0
+        self._last_state = "idle"
+        
         self._full_width = max(120, _env_int("FLOATING_WIDTH", 180))
         self._full_height = max(34, _env_int("FLOATING_HEIGHT", 44))
         self._idle_scale = 0.50
@@ -953,7 +1010,13 @@ class GUIManager:
         if abs(delta) < 0.004:
             next_scale = target
         else:
-            next_scale = current + (delta * self._scale_smoothing)
+            # Use smoother easing for modern UI
+            if self._ui_style == "modern" and self._animations_enabled and not self._reduced_motion:
+                # Elastic easing for natural motion
+                smoothing = 0.25
+                next_scale = current + (delta * smoothing)
+            else:
+                next_scale = current + (delta * self._scale_smoothing)
         self._apply_window_scale(next_scale)
 
     def set_close_callback(self, callback):
@@ -963,6 +1026,17 @@ class GUIManager:
         hovered = bool(hovered)
         if hovered != self._window_hover:
             self._window_hover = hovered
+            # Trigger hover animation for modern UI
+            if self._ui_style == "modern" and self._animations_enabled and not self._reduced_motion:
+                if hovered:
+                    # Scale up slightly on hover
+                    visual_state = _resolve_visual_state(self._mode)
+                    base_scale = 1.0 if visual_state in {"record", "processing"} else self._idle_scale
+                    self._target_window_scale = base_scale * self._hover_scale
+                else:
+                    # Return to normal scale
+                    visual_state = _resolve_visual_state(self._mode)
+                    self._target_window_scale = 1.0 if visual_state in {"record", "processing"} else self._idle_scale
             self._window.update()
 
     def _close_button_rect(self) -> QRectF:
@@ -1088,6 +1162,28 @@ class GUIManager:
 
     def _poll(self):
         self._refresh_logo_if_changed()
+        
+        # Update animation phases for modern UI
+        if self._ui_style == "modern" and self._animations_enabled and not self._reduced_motion:
+            dt = 0.016  # ~60fps
+            self._breathing_phase += dt
+            self._pulse_phase += dt
+            
+            visual_state = _resolve_visual_state(self._mode)
+            if visual_state != self._last_state:
+                self._state_transition_progress = 0.0
+                self._last_state = visual_state
+            else:
+                self._state_transition_progress = min(1.0, self._state_transition_progress + dt * 3.0)
+            
+            # Update glow intensity based on state
+            target_glow = 0.0
+            if visual_state == "record":
+                target_glow = 0.4 + 0.2 * np.sin(self._pulse_phase * 4.0)
+            elif visual_state == "processing":
+                target_glow = 0.3
+            
+            self._glow_intensity_current += (target_glow - self._glow_intensity_current) * 0.15
 
         try:
             while True:
@@ -1109,6 +1205,15 @@ class GUIManager:
                     self._mode = "idle"
                     self._display_text = "Ready"
                     self._window.hide()
+                elif cmd == "feedback":
+                    # Handle success/error feedback animations
+                    feedback_type = arg
+                    if feedback_type == "success":
+                        # Brief green flash and bounce
+                        self._show_feedback_animation("success")
+                    elif feedback_type == "error":
+                        # Brief red flash and shake
+                        self._show_feedback_animation("error")
                 elif cmd == "clipboard":
                     try:
                         self._app.clipboard().setText(str(arg))
@@ -1223,6 +1328,11 @@ class GUIManager:
         visual_state = _resolve_visual_state(self._mode)
         is_recording = (visual_state == "record")
         is_hovered = self._window_hover
+        
+        # Use modern glassmorphism style if enabled
+        if self._ui_style == "modern" and self._glassmorphism_enabled:
+            self._paint_modern_shell(painter, w, h, outer_radius, inner_radius, visual_state, is_recording, is_hovered)
+            return
 
         shadow_alpha = 44 + (12 if is_hovered else 0) + (10 if is_recording else 0)
         shadow_rect = QRectF(2.0, 3.0, max(0.0, w - 4.0), max(0.0, h - 5.0))
@@ -1263,6 +1373,86 @@ class GUIManager:
         painter.setBrush(Qt.NoBrush)
         painter.drawRoundedRect(border_rect, inner_radius, inner_radius)
         painter.setPen(Qt.NoPen)
+    
+    def _paint_modern_shell(self, painter, w: float, h: float, outer_radius: float, inner_radius: float, 
+                           visual_state: str, is_recording: bool, is_hovered: bool):
+        """Paint modern glassmorphism shell with 2026 UI/UX design"""
+        
+        # Enhanced shadow with depth
+        shadow_blur = 32 if is_recording else 24
+        shadow_alpha = 25 + (10 if is_hovered else 0) + (15 if is_recording else 0)
+        for i in range(3):
+            offset = (i + 1) * 2.0
+            shadow_rect = QRectF(offset, offset + 2, max(0.0, w - offset * 2), max(0.0, h - offset * 2))
+            alpha = int(shadow_alpha / (i + 1))
+            painter.setPen(Qt.NoPen)
+            painter.setBrush(QColor(0, 0, 0, alpha))
+            painter.drawRoundedRect(shadow_rect, outer_radius, outer_radius)
+        
+        # Glassmorphic background with translucency
+        glass_alpha = 30 if is_recording else 25
+        if is_hovered:
+            glass_alpha += 5
+        
+        shell_rect = QRectF(1.0, 1.0, max(0.0, w - 2.0), max(0.0, h - 2.0))
+        
+        # Background fill with slight tint based on state
+        if is_recording:
+            bg_color = QColor(255, 255, 255, glass_alpha)
+        else:
+            bg_color = QColor(255, 255, 255, glass_alpha)
+        
+        painter.setPen(Qt.NoPen)
+        painter.setBrush(bg_color)
+        painter.drawRoundedRect(shell_rect, inner_radius, inner_radius)
+        
+        # Outer glow effect for active states
+        if is_recording and self._glow_intensity_current > 0.01:
+            accent = self._accent_color
+            glow_color = QColor(*accent["glow"])
+            glow_alpha = int(self._glow_intensity_current * 255)
+            glow_color.setAlpha(glow_alpha)
+            
+            for i in range(4):
+                glow_offset = (i + 1) * 4.0
+                glow_rect = QRectF(
+                    1.0 - glow_offset,
+                    1.0 - glow_offset,
+                    max(0.0, w - 2.0 + glow_offset * 2),
+                    max(0.0, h - 2.0 + glow_offset * 2)
+                )
+                glow_alpha_layer = int(glow_alpha / (i + 1) * 0.6)
+                glow_color.setAlpha(glow_alpha_layer)
+                painter.setBrush(glow_color)
+                painter.drawRoundedRect(glow_rect, inner_radius + glow_offset / 2, inner_radius + glow_offset / 2)
+        
+        # Border with accent color for active states
+        border_width = 1.5
+        border_inset = border_width / 2.0 + 0.5
+        border_rect = QRectF(
+            border_inset,
+            border_inset,
+            max(0.0, w - border_inset * 2.0),
+            max(0.0, h - border_inset * 2.0),
+        )
+        
+        border_pen = painter.pen()
+        if is_recording:
+            accent = self._accent_color
+            border_color = QColor(accent["primary"])
+            border_alpha = int(153 + self._glow_intensity_current * 50)
+            border_color.setAlpha(border_alpha)
+            border_pen.setColor(border_color)
+            border_width = 2.0
+        else:
+            border_alpha = 51 if not is_hovered else 76
+            border_pen.setColor(QColor(255, 255, 255, border_alpha))
+        
+        border_pen.setWidthF(border_width)
+        painter.setPen(border_pen)
+        painter.setBrush(Qt.NoBrush)
+        painter.drawRoundedRect(border_rect, inner_radius, inner_radius)
+        painter.setPen(Qt.NoPen)
 
     def _state_palette(self) -> dict:
         state = _resolve_visual_state(self._mode)
@@ -1272,6 +1462,11 @@ class GUIManager:
     def _paint_bars(self, painter, w: float, h: float):
         visual_state = _resolve_visual_state(self._mode)
         if visual_state != "record":
+            return
+        
+        # Use modern waveform visualization if enabled
+        if self._ui_style == "modern":
+            self._paint_modern_waveform(painter, w, h, visual_state)
             return
 
         now = time.time()
@@ -1366,6 +1561,91 @@ class GUIManager:
             self._last_wave_debug_log = now
 
         painter.setPen(Qt.NoPen)
+    
+    def _paint_modern_waveform(self, painter, w: float, h: float, visual_state: str):
+        """Paint modern smooth waveform visualization with gradient and glow"""
+        
+        now = time.time()
+        right_pad = 30.0 if self._show_close_button else 0.0
+        draw_w = max(24.0, w - right_pad)
+        mid_x = draw_w / 2.0
+        mid_y = h / 2.0
+        
+        # Modern waveform parameters
+        bar_count = 7  # Fewer bars, more elegant
+        bar_spacing = 8.0
+        bar_width = 4.0
+        bar_radius = 2.0
+        min_bar_h = 4.0
+        max_bar_h = h * 0.6
+        
+        # Calculate total width and starting position
+        total_width = (bar_count * bar_width) + ((bar_count - 1) * bar_spacing)
+        start_x = mid_x - (total_width / 2.0)
+        
+        # Get current heights
+        heights_for_render = list(self._current_heights[:self._bar_count])
+        if len(heights_for_render) < self._bar_count:
+            heights_for_render.extend([0.0] * (self._bar_count - len(heights_for_render)))
+        
+        # Interpolate to bar_count
+        bar_values = []
+        for i in range(bar_count):
+            sample_pos = i * max(1, self._bar_count - 1) / max(1, bar_count - 1)
+            left_idx = int(sample_pos)
+            right_idx = min(self._bar_count - 1, left_idx + 1)
+            blend = sample_pos - left_idx
+            level = (heights_for_render[left_idx] * (1.0 - blend)) + (heights_for_render[right_idx] * blend)
+            
+            # Apply center bias for elegant arch
+            center_idx = (bar_count - 1) / 2.0
+            center_dist = abs(i - center_idx) / max(1.0, center_idx)
+            arch = 1.0 - (center_dist ** 1.2) * 0.3
+            
+            strength = _clamp(level ** 0.6, 0.0, 1.0)
+            bar_h = min_bar_h + ((max_bar_h - min_bar_h) * strength * arch)
+            x = start_x + (i * (bar_width + bar_spacing))
+            bar_values.append((x, _clamp(bar_h, min_bar_h, max_bar_h)))
+        
+        # Get accent color
+        accent = self._accent_color
+        
+        # Draw glow effect
+        if self._glow_intensity_current > 0.01:
+            glow_color = QColor(*accent["glow"])
+            glow_alpha = int(self._glow_intensity_current * 180)
+            glow_color.setAlpha(glow_alpha)
+            painter.setPen(Qt.NoPen)
+            painter.setBrush(glow_color)
+            
+            for x, bar_h in bar_values:
+                glow_rect = QRectF(
+                    float(x - bar_width * 0.5),
+                    float(mid_y - (bar_h / 2.0) - 2.0),
+                    float(bar_width * 2.0),
+                    float(bar_h + 4.0),
+                )
+                painter.drawRoundedRect(glow_rect, bar_radius + 1.0, bar_radius + 1.0)
+        
+        # Draw bars with gradient
+        painter.setPen(Qt.NoPen)
+        
+        for x, bar_h in bar_values:
+            bar_rect = QRectF(
+                float(x),
+                float(mid_y - (bar_h / 2.0)),
+                float(bar_width),
+                float(bar_h),
+            )
+            
+            # Create gradient from light to dark
+            gradient = QLinearGradient(bar_rect.topLeft(), bar_rect.bottomLeft())
+            gradient.setColorAt(0.0, QColor(accent["light"]))
+            gradient.setColorAt(0.5, QColor(accent["primary"]))
+            gradient.setColorAt(1.0, QColor(accent["dark"]))
+            
+            painter.setBrush(gradient)
+            painter.drawRoundedRect(bar_rect, bar_radius, bar_radius)
 
     def _paint_window(self, window):
         painter = QPainter(window)
@@ -1389,6 +1669,16 @@ class GUIManager:
 
     def update(self, text: str):
         self._queue.put(("update", text))
+    
+    def show_success_feedback(self):
+        """Show brief success animation (green flash + bounce)"""
+        if self._ui_style == "modern" and self._animations_enabled and not self._reduced_motion:
+            self._queue.put(("feedback", "success"))
+    
+    def show_error_feedback(self):
+        """Show brief error animation (red flash + shake)"""
+        if self._ui_style == "modern" and self._animations_enabled and not self._reduced_motion:
+            self._queue.put(("feedback", "error"))
 
     def update_amplitude(self, amp: float):
         self._audio_queue.put(amp)
@@ -1406,6 +1696,29 @@ class GUIManager:
 
     def quit(self):
         self._app.quit()
+    
+    def _show_feedback_animation(self, feedback_type: str):
+        """Show brief visual feedback animation"""
+        if feedback_type == "success":
+            # Store original position
+            original_y = self._window.y()
+            # Quick bounce animation
+            for i in range(3):
+                offset = 5 if i % 2 == 0 else -5
+                self._window.move(self._window.x(), original_y + offset)
+                QApplication.processEvents()
+                time.sleep(0.05)
+            self._window.move(self._window.x(), original_y)
+        elif feedback_type == "error":
+            # Store original position
+            original_x = self._window.x()
+            # Quick shake animation
+            for i in range(4):
+                offset = 3 if i % 2 == 0 else -3
+                self._window.move(original_x + offset, self._window.y())
+                QApplication.processEvents()
+                time.sleep(0.04)
+            self._window.move(original_x, self._window.y())
     
     # --- Preview Window Methods ---
     
@@ -2132,6 +2445,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="DictaPilot - Press-and-hold dictation")
     parser.add_argument("--tray", action="store_true", help="Run with system tray")
     parser.add_argument("--gui", action="store_true", help="Launch settings dashboard")
+    parser.add_argument("--legacy-ui", action="store_true", help="Launch legacy settings window")
     parser.add_argument("--export", type=str, metavar="FILE", help="Export all transcriptions to a text file")
     parser.add_argument("--list", action="store_true", help="List recent transcriptions")
     parser.add_argument("--stats", action="store_true", help="Show transcription statistics")
@@ -2139,12 +2453,25 @@ if __name__ == "__main__":
     parser.add_argument("--wayland-deps", action="store_true", help="Show Wayland dependency installation instructions")
     args = parser.parse_args()
     
+    # Check config for UI preference
+    from config import load_config
+    config = load_config()
+    use_legacy = config.use_legacy_ui if hasattr(config, 'use_legacy_ui') else False
+    
     if args.gui or is_frozen():
         # When running as packaged exe, show settings dashboard by default
         # This ensures users see the main interface, not just the floating overlay
         try:
-            from settings_dashboard import run_dashboard
-            sys.exit(run_dashboard() or 0)
+            if args.legacy_ui or use_legacy:
+                from settings_dashboard import run_dashboard
+                sys.exit(run_dashboard() or 0)
+            else:
+                from dashboard_main import DictaPilotMainDashboard
+                from PySide6.QtWidgets import QApplication
+                app = QApplication(sys.argv)
+                dashboard = DictaPilotMainDashboard(config)
+                dashboard.show()
+                sys.exit(app.exec())
         except ImportError as e:
             print(f"Error: Could not launch settings dashboard: {e}")
             print("Make sure PySide6 is installed: pip install PySide6")
