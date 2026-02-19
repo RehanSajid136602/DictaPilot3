@@ -42,5 +42,7 @@ echo
 echo "Setup complete."
 echo "1) Open .env and set GROQ_API_KEY"
 echo "2) Run: python app.py"
+echo "3) Customize modern UI (optional): Edit FLOATING_UI_STYLE in .env"
+echo "   See docs/modern-ui-guide.md for details"
 echo
 read -r -p "Press Enter to close..."

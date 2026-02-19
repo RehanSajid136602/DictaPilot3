@@ -24,6 +24,7 @@ datas = [
     (str(project_root / "public" / "asset" / "logo.png"), "public/asset"),
     (str(project_root / "LICENSE"), "."),
     (str(project_root / "README.md"), "."),
+    (str(project_root / "docs" / "modern-ui-guide.md"), "docs"),
 ]
 
 # Check if logo exists, add to datas if present

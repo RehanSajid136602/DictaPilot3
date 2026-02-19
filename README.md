@@ -18,6 +18,13 @@
 - **Developer-Focused** - Agent mode for coding workflows
 - **Privacy-First** - Local storage, open source
 
+### Modern Floating Window UI
+- **Glassmorphism Design** - Translucent glass effect with backdrop blur simulation
+- **Smooth Animations** - Breathing, pulsing, and state transitions at 60 FPS
+- **Accent Colors** - Choose blue, purple, or green themes
+- **Accessibility** - Reduced motion support, classic mode fallback
+- **2026 UI/UX** - Modern design principles with micro-interactions
+
 ## 🚀 Quick Start
 
 **Get started in under 5 minutes:**
@@ -210,6 +217,25 @@ We welcome contributions! See [Contributing Guide](docs/developer/contributing.m
 **Streaming vs Batch Mode:**
 - **Streaming** (default): See words as you speak, final accuracy pass ensures quality
 - **Batch** (set `STREAMING_ENABLED=0`): Traditional mode - only transcribes after you release
+
+### Modern Floating Window UI
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `FLOATING_UI_STYLE` | `modern` | UI style: `modern` or `classic` |
+| `FLOATING_ACCENT_COLOR` | `blue` | Accent color: `blue`, `purple`, `green` |
+| `FLOATING_GLASSMORPHISM` | `1` | Enable glassmorphism effect |
+| `FLOATING_ANIMATIONS` | `1` | Enable smooth animations |
+| `FLOATING_REDUCED_MOTION` | `0` | Accessibility: disable animations |
+| `FLOATING_LAYOUT` | `pill` | Layout style: `pill`, `circular`, `card` |
+
+**Modern UI Features:**
+- **Glassmorphism**: Translucent backgrounds with multi-layer shadows
+- **Animations**: 60 FPS breathing, pulsing, and state transitions
+- **Accent Colors**: Blue (professional), Purple (creative), Green (positive)
+- **Accessibility**: Reduced motion support, classic mode fallback
+
+**See full guide:** [Modern UI Guide](docs/modern-ui-guide.md)
 
 ### Backend Selection
 

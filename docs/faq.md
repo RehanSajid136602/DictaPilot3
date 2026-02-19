@@ -148,6 +148,103 @@ Profiles let you configure different settings per application:
 - Custom dictionary
 - Cleanup level
 
+---
+
+## Modern UI
+
+### How do I customize the floating window appearance?
+
+Edit `.env` file to customize the modern UI:
+
+```bash
+FLOATING_UI_STYLE=modern          # or "classic" for old design
+FLOATING_ACCENT_COLOR=blue        # blue, purple, or green
+FLOATING_GLASSMORPHISM=1          # enable glass effect
+FLOATING_ANIMATIONS=1             # enable animations
+FLOATING_REDUCED_MOTION=0         # accessibility option
+```
+
+See [Modern UI Guide](modern-ui-guide.md) for detailed customization options.
+
+### Can I disable animations?
+
+Yes, there are two ways:
+
+1. **Disable all animations:**
+   ```bash
+   FLOATING_ANIMATIONS=0
+   ```
+
+2. **Enable reduced motion (accessibility):**
+   ```bash
+   FLOATING_REDUCED_MOTION=1
+   ```
+
+Reduced motion keeps essential animations but removes decorative effects.
+
+### What are the accent color options?
+
+Three accent colors are available:
+
+- **Blue** (default) - Professional and trustworthy (#3B82F6)
+- **Purple** - Creative and modern (#8B5CF6)
+- **Green** - Positive and energetic (#10B981)
+
+Set in `.env`:
+```bash
+FLOATING_ACCENT_COLOR=purple
+```
+
+### How do I switch back to the classic UI?
+
+Set `FLOATING_UI_STYLE=classic` in `.env`:
+
+```bash
+FLOATING_UI_STYLE=classic
+```
+
+Restart DictaPilot for changes to take effect. Classic UI uses the original design without glassmorphism or modern animations.
+
+### Why are animations choppy?
+
+Choppy animations can be caused by:
+
+1. **High CPU usage** - Close other applications
+2. **Low-end hardware** - Enable reduced motion or disable animations
+3. **Compositor issues** (Linux) - Check if compositor is running
+
+**Solutions:**
+```bash
+FLOATING_REDUCED_MOTION=1    # Reduce animation complexity
+FLOATING_ANIMATIONS=0        # Disable animations completely
+FLOATING_UI_STYLE=classic    # Use classic UI
+```
+
+### Does the modern UI work on all platforms?
+
+Yes, the modern UI works on:
+- **Linux** (X11 and Wayland with compositor)
+- **macOS** (10.14+)
+- **Windows** (10/11)
+
+**Note:** Glassmorphism requires compositor support:
+- Linux: Enable compositor (usually enabled by default on modern desktops)
+- macOS: Works out of the box
+- Windows: Works on Windows 10/11
+
+If transparency doesn't work, the UI will fall back gracefully or you can use classic mode.
+
+### Can I change the floating window size?
+
+Yes, set dimensions in `.env`:
+
+```bash
+FLOATING_WIDTH=200
+FLOATING_HEIGHT=50
+```
+
+The window will scale appropriately while maintaining the modern design.
+
 Example: Use formal tone in email, casual in chat apps.
 
 ---

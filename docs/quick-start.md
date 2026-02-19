@@ -92,6 +92,28 @@ Available keys: `f1`-`f12`, `ctrl+shift+d`, etc.
 
 **Verification:** If text appears correctly, setup is complete! 🎉
 
+## Step 6: Customize Modern UI (Optional)
+
+The floating window uses a modern glassmorphism design by default. Customize in `.env`:
+
+```bash
+FLOATING_UI_STYLE=modern          # or "classic" for old design
+FLOATING_ACCENT_COLOR=blue        # blue, purple, or green
+FLOATING_GLASSMORPHISM=1          # enable glass effect
+FLOATING_ANIMATIONS=1             # enable animations
+FLOATING_REDUCED_MOTION=0         # accessibility option
+```
+
+**Modern UI Features:**
+- Translucent glass effect with backdrop blur
+- Smooth 60 FPS animations (breathing, pulsing)
+- Three accent color themes
+- Reduced motion support for accessibility
+
+**See full guide:** [Modern UI Guide](modern-ui-guide.md)
+
+**Verification:** Change `FLOATING_ACCENT_COLOR=purple` and restart to see the purple theme.
+
 ## Troubleshooting
 
 **Hotkey not working?**
@@ -112,6 +134,11 @@ Available keys: `f1`-`f12`, `ctrl+shift+d`, etc.
 - Check microphone permissions
 - List available devices: `python -c "import sounddevice; print(sounddevice.query_devices())"`
 - Set specific device: `AUDIO_DEVICE=1` in `.env`
+
+**Animation performance issues?**
+- Enable reduced motion: `FLOATING_REDUCED_MOTION=1`
+- Disable animations: `FLOATING_ANIMATIONS=0`
+- Switch to classic UI: `FLOATING_UI_STYLE=classic`
 
 ## Next Steps
 

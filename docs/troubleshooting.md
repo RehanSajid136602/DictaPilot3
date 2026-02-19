@@ -99,6 +99,222 @@ Valid formats: `f1`-`f12`, `ctrl+shift+d`, `alt+f9`, `cmd+space`
 - Text doesn't appear in target application
 - Clipboard may or may not contain text
 
+---
+
+## Modern UI Issues
+
+### Animations are choppy or laggy
+
+**Symptoms:** Floating window animations stutter or drop frames
+
+**Diagnostic:**
+```bash
+# Check CPU usage while recording
+top  # Linux/macOS
+# or Task Manager on Windows
+```
+
+**Solutions:**
+
+1. **Enable reduced motion:**
+   ```bash
+   FLOATING_REDUCED_MOTION=1
+   ```
+   This keeps essential animations but removes decorative effects.
+
+2. **Disable animations completely:**
+   ```bash
+   FLOATING_ANIMATIONS=0
+   ```
+
+3. **Switch to classic UI:**
+   ```bash
+   FLOATING_UI_STYLE=classic
+   ```
+
+4. **Check CPU usage:**
+   - Close other resource-intensive applications
+   - Check background processes
+   - Verify system isn't thermal throttling
+
+5. **Reduce window size:**
+   ```bash
+   FLOATING_WIDTH=150
+   FLOATING_HEIGHT=40
+   ```
+
+**Note:** Animations target 60 FPS and should use <5% CPU on modern hardware.
+
+### Glassmorphism effect not visible
+
+**Symptoms:** Floating window appears solid, not translucent
+
+**Diagnostic:**
+```bash
+# Check if compositor is running (Linux)
+ps aux | grep -i compos
+
+# Check Qt transparency support
+python -c "from PySide6.QtWidgets import QApplication; app = QApplication([]); print('Qt OK')"
+```
+
+**Solutions:**
+
+1. **Ensure glassmorphism is enabled:**
+   ```bash
+   FLOATING_GLASSMORPHISM=1
+   ```
+
+2. **Linux: Enable compositor**
+   - GNOME/KDE: Usually enabled by default
+   - i3/bspwm: Install and run `picom` or `compton`
+   - Check compositor: `ps aux | grep picom`
+
+3. **Try different accent colors:**
+   ```bash
+   FLOATING_ACCENT_COLOR=purple
+   # or
+   FLOATING_ACCENT_COLOR=green
+   ```
+
+4. **Verify Qt supports transparency:**
+   - Update PySide6: `pip install --upgrade PySide6`
+   - Check Qt version: `python -c "from PySide6 import __version__; print(__version__)"`
+
+5. **Switch to classic UI if transparency not supported:**
+   ```bash
+   FLOATING_UI_STYLE=classic
+   ```
+
+**Platform-specific notes:**
+- **Linux X11:** Requires compositor (picom, compton, etc.)
+- **Linux Wayland:** Compositor built-in, should work out of the box
+- **macOS:** Works natively, no additional setup
+- **Windows 10/11:** Works natively with DWM
+
+### Accent color not changing
+
+**Symptoms:** Floating window stays same color despite changing setting
+
+**Diagnostic:**
+```bash
+# Check current setting
+grep FLOATING_ACCENT_COLOR .env
+```
+
+**Solutions:**
+
+1. **Restart DictaPilot after changing .env:**
+   - Stop the application (Ctrl+C)
+   - Edit `.env` file
+   - Start again: `python app.py`
+
+2. **Verify spelling:**
+   ```bash
+   FLOATING_ACCENT_COLOR=blue     # ✓ Correct
+   FLOATING_ACCENT_COLOR=purple   # ✓ Correct
+   FLOATING_ACCENT_COLOR=green    # ✓ Correct
+   FLOATING_ACCENT_COLOR=Blue     # ✗ Wrong (case-sensitive)
+   FLOATING_ACCENT_COLOR=red      # ✗ Not supported
+   ```
+
+3. **Check for typos in .env file:**
+   - No extra spaces: `FLOATING_ACCENT_COLOR=blue` (not `= blue`)
+   - No quotes needed: `blue` (not `"blue"`)
+
+4. **Clear cache and restart:**
+   ```bash
+   rm -rf __pycache__
+   python app.py
+   ```
+
+5. **Verify modern UI is enabled:**
+   ```bash
+   FLOATING_UI_STYLE=modern
+   ```
+
+### Floating window too small or too large
+
+**Symptoms:** Window size doesn't match expectations
+
+**Solutions:**
+
+1. **Adjust dimensions:**
+   ```bash
+   FLOATING_WIDTH=200
+   FLOATING_HEIGHT=50
+   ```
+
+2. **Check DPI scaling:**
+   - High DPI displays may scale differently
+   - Window should scale appropriately automatically
+
+3. **Try different layout:**
+   ```bash
+   FLOATING_LAYOUT=pill      # Default, balanced
+   FLOATING_LAYOUT=circular  # Compact
+   FLOATING_LAYOUT=card      # Larger
+   ```
+
+### Hover effects not working
+
+**Symptoms:** No visual change when hovering over floating window
+
+**Solutions:**
+
+1. **Ensure animations are enabled:**
+   ```bash
+   FLOATING_ANIMATIONS=1
+   FLOATING_REDUCED_MOTION=0
+   ```
+
+2. **Check if modern UI is active:**
+   ```bash
+   FLOATING_UI_STYLE=modern
+   ```
+
+3. **Restart application** after changing settings
+
+### Performance impact from modern UI
+
+**Symptoms:** System feels slower with modern UI enabled
+
+**Diagnostic:**
+```bash
+# Monitor CPU usage
+top -p $(pgrep -f "python.*app.py")
+```
+
+**Solutions:**
+
+1. **Use reduced motion:**
+   ```bash
+   FLOATING_REDUCED_MOTION=1
+   ```
+   Reduces animation complexity while keeping functionality.
+
+2. **Disable specific features:**
+   ```bash
+   FLOATING_GLASSMORPHISM=0  # Disable glass effect
+   FLOATING_ANIMATIONS=0     # Disable animations
+   ```
+
+3. **Switch to classic UI:**
+   ```bash
+   FLOATING_UI_STYLE=classic
+   ```
+   Classic UI has minimal overhead.
+
+4. **Reduce bar count:**
+   ```bash
+   FLOATING_BAR_COUNT=3  # Fewer bars = less rendering
+   ```
+
+**Expected performance:**
+- CPU usage: <5% during animations
+- Memory: ~50KB additional for animation state
+- No impact on transcription quality or speed
+
 ### Diagnostic Flowchart
 
 ```
