@@ -310,8 +310,8 @@ _FLOATING_THEME_PRESETS = {
 
 _MOTION_PROFILE_PRESETS = {
     "expressive": {
-        "rise": 0.82,
-        "decay": 0.20,
+        "rise": 0.92,  # Increased from 0.82 for faster response
+        "decay": 0.25,  # Increased from 0.20 for faster decay
         "env_keep": 0.68,
         "env_new": 0.32,
         "center_drop": 0.30,
@@ -912,7 +912,7 @@ class GUIManager:
         
         self._full_width = max(120, _env_int("FLOATING_WIDTH", 180))
         self._full_height = max(34, _env_int("FLOATING_HEIGHT", 44))
-        self._idle_scale = 0.50
+        self._idle_scale = 0.75  # Increased from 0.50 for better visibility
         self._window_scale = 1.0
         self._target_window_scale = 1.0
         self._scale_smoothing = 0.34
@@ -1238,6 +1238,13 @@ class GUIManager:
             pass
         except Exception:
             pass
+        
+        # Debug logging for waveform
+        if self._wave_debug and is_recording:
+            now = time.time()
+            if now - self._last_wave_debug_log > 0.5:
+                print(f"[waveform-debug] amplitudes={[f'{a:.2f}' for a in self._amplitudes[:3]]} heights={[f'{h:.2f}' for h in self._current_heights[:3]]} level_env={self._level_env:.3f}")
+                self._last_wave_debug_log = now
 
         if is_recording:
             self._level_peak = max(self._level_peak * 0.992, self._level_env, 0.09)
@@ -1258,7 +1265,7 @@ class GUIManager:
                 local = _clamp(local, 0.0, 1.0)
                 center_bias = 1.14 - (abs(i - half) / half) * 0.26
                 strength = (local ** 0.58) * center_bias
-                target = _clamp(0.06 + (strength * 0.90), 0.0, 1.0)
+                target = _clamp(0.15 + (strength * 0.85), 0.0, 1.0)  # Increased floor from 0.06 to 0.15
             else:
                 target = 0.0
 
@@ -1572,7 +1579,7 @@ class GUIManager:
         mid_y = h / 2.0
         
         # Modern waveform parameters
-        bar_count = 7  # Fewer bars, more elegant
+        bar_count = self._bar_count  # Use configured bar count for consistency
         bar_spacing = 8.0
         bar_width = 4.0
         bar_radius = 2.0
