@@ -590,3 +590,26 @@ if __name__ == "__main__":
 
         markdown = formatter.format_for_agent(text, mode="markdown")
         print(f"Markdown:\n{markdown}")
+    def format_as_spec(self, text: str, format_style: str = "standard") -> str:
+        """Format text as specification document"""
+        from spec_generator import Specification
+        
+        prompt = self.parse(text)
+        
+        # Convert AgentPrompt to Specification
+        spec = Specification(
+            title=prompt.task or "Agent Task",
+            goal=prompt.task,
+            context=prompt.context,
+            acceptance_criteria=[prompt.acceptance_criteria] if prompt.acceptance_criteria else [],
+            constraints=[prompt.constraints] if prompt.constraints else [],
+            files_locations=prompt.files_locations or [],
+            metadata={
+                "priority": prompt.priority,
+                "complexity": prompt.complexity,
+                "language": prompt.language or "",
+                "frameworks": ", ".join(prompt.frameworks) if prompt.frameworks else "",
+            }
+        )
+        
+        return spec.to_markdown(format_style)

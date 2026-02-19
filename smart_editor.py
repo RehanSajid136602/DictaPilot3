@@ -1230,10 +1230,32 @@ def _llm_updated_transcript(
     if intent and intent.get("type") in {"rewrite", "grammar"}:
         mode = intent.get("type")
         target_tone = (intent.get("tone") or tone).strip().lower()
+        
+        # Get grammar preservation settings
+        preserve_code = os.getenv("GRAMMAR_PRESERVE_CODE", "1").strip().lower() in ("1", "true", "yes")
+        preserve_technical = os.getenv("GRAMMAR_PRESERVE_TECHNICAL", "1").strip().lower() in ("1", "true", "yes")
+        
+        if mode == 'grammar':
+            task_desc = "Fix grammar and spelling errors while preserving meaning"
+            preservation_rules = "\nIMPORTANT PRESERVATION RULES:\n"
+            if preserve_code:
+                preservation_rules += "- Preserve ALL code snippets, function names, variable names, and technical syntax\n"
+                preservation_rules += "- Do NOT modify anything that looks like code (camelCase, snake_case, brackets, etc.)\n"
+            if preserve_technical:
+                preservation_rules += "- Preserve technical terms, API names, brand names, and proper nouns\n"
+                preservation_rules += "- Do NOT 'correct' technical jargon or domain-specific terminology\n"
+            preservation_rules += "- Make MINIMAL changes - only fix clear grammar/spelling errors\n"
+            preservation_rules += "- Preserve the original sentence structure and meaning\n"
+            preservation_rules += "- Do NOT rephrase or rewrite unless grammatically incorrect\n"
+        else:
+            task_desc = "Rewrite"
+            preservation_rules = ""
+        
         user_prompt = (
             f"Current transcript:\n---\n{prev_output}\n---\n\n"
             f"Command: {utterance}\n"
-            f"Task: {'Fix grammar/spelling and polish' if mode == 'grammar' else 'Rewrite'}\n"
+            f"Task: {task_desc}\n"
+            f"{preservation_rules}"
             f"Tone: {target_tone}\n"
             f"Language: {language}\n"
             "Rewrite the FULL transcript accordingly and return JSON with updated_transcript and action.\n"

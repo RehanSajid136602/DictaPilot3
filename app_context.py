@@ -81,6 +81,36 @@ def _profile_bundle_path() -> Path:
     return _profiles_path().parent / "profile_bundle.json"
 
 
+# CLI/Terminal application detection
+CLI_KEYWORDS = [
+    'terminal', 'iterm', 'konsole', 'gnome-terminal', 'xterm',
+    'alacritty', 'kitty', 'wezterm', 'tilix', 'terminator',
+    'cmd.exe', 'powershell', 'pwsh', 'windowsterminal',
+    'bash', 'zsh', 'fish', 'sh', 'tcsh', 'ksh',
+    'console', 'command', 'shell', 'mintty', 'conemu',
+    'hyper', 'tabby', 'terminus', 'cmder'
+]
+
+
+def is_cli_application(app_name: str) -> bool:
+    """
+    Check if application is a CLI/terminal environment.
+    
+    Args:
+        app_name: Name of the application
+        
+    Returns:
+        True if application is a terminal/CLI tool
+    """
+    if not app_name:
+        return False
+    
+    app_lower = app_name.lower()
+    
+    # Check against known CLI keywords
+    return any(keyword in app_lower for keyword in CLI_KEYWORDS)
+
+
 _PROFILE_CACHE = {"path": None, "mtime": None, "data": {}}
 _PROFILE_BUNDLE_CACHE = {"path": None, "mtime": None, "data": {}}
 

@@ -624,11 +624,114 @@ import threading
 
 
 def paste_text(prev_text: str, new_text: str, mode: str = "delta", backend: str = "auto") -> None:
+    """
+    Paste text with CLI environment detection to prevent auto-enter issues.
+    
+    Args:
+        prev_text: Previous text (for delta mode)
+        new_text: New text to paste
+        mode: Paste mode ("delta" or "full")
+        backend: Backend to use ("auto", "x11", "wayland", etc.)
+    """
+    # Sanitize text for CLI environments to prevent auto-enter
+    sanitized_text = _sanitize_text_for_environment(new_text or "")
+    
     selected_mode = (mode or "delta").strip().lower()
     if selected_mode == "full":
-        paste_full_replace(new_text or "", backend=backend)
+        paste_full_replace(sanitized_text, backend=backend)
         return
-    paste_delta(prev_text or "", new_text or "", backend=backend)
+    paste_delta(prev_text or "", sanitized_text, backend=backend)
+
+
+def _detect_cli_environment() -> bool:
+    """
+    Detect if current application is a CLI/terminal environment.
+    
+    Returns:
+        True if in a terminal/CLI environment
+    """
+    # Check environment variable override
+    cli_auto_detect = os.getenv("CLI_AUTO_DETECT", "1").strip()
+    if cli_auto_detect.lower() in ("0", "false", "no", "off"):
+        return False
+    
+    try:
+        from app_context import is_cli_application, get_context
+        
+        # Get current application context
+        context = get_context()
+        if context and context.app_id:
+            return is_cli_application(context.app_id)
+    except Exception:
+        pass
+    
+    # Fallback: check ACTIVE_APP environment variable
+    active_app = os.getenv("ACTIVE_APP", "").lower()
+    if active_app:
+        cli_keywords = [
+            'terminal', 'iterm', 'konsole', 'gnome-terminal', 'xterm',
+            'alacritty', 'kitty', 'wezterm', 'cmd', 'powershell', 'pwsh',
+            'bash', 'zsh', 'fish', 'shell', 'console'
+        ]
+        return any(keyword in active_app for keyword in cli_keywords)
+    
+    return False
+
+
+def _sanitize_for_cli(text: str) -> str:
+    """
+    Sanitize text for CLI environments by removing/replacing newlines.
+    
+    Args:
+        text: Text to sanitize
+        
+    Returns:
+        Sanitized text with newlines replaced by spaces
+    """
+    if not text:
+        return text
+    
+    # Check if user explicitly wants newlines (said "new line" or "enter")
+    newline_keyword = os.getenv("CLI_NEWLINE_KEYWORD", "new line").lower()
+    if newline_keyword in text.lower():
+        # User explicitly requested newlines, preserve them
+        return text
+    
+    # Replace newlines with spaces to prevent auto-enter
+    # This keeps the text on a single line in the terminal
+    sanitized = text.replace('\n', ' ').replace('\r', ' ')
+    
+    # Clean up multiple spaces
+    import re
+    sanitized = re.sub(r'\s+', ' ', sanitized)
+    
+    return sanitized.strip()
+
+
+def _sanitize_text_for_environment(text: str) -> str:
+    """
+    Sanitize text based on current environment (CLI vs GUI).
+    
+    Args:
+        text: Text to sanitize
+        
+    Returns:
+        Sanitized text appropriate for the environment
+    """
+    if not text:
+        return text
+    
+    # Check if CLI newline stripping is enabled
+    cli_strip_newlines = os.getenv("CLI_STRIP_NEWLINES", "1").strip()
+    if cli_strip_newlines.lower() in ("0", "false", "no", "off"):
+        return text
+    
+    # Detect CLI environment and sanitize if needed
+    if _detect_cli_environment():
+        return _sanitize_for_cli(text)
+    
+    # Not in CLI, return text as-is
+    return text
 
 
 class PasteWorker:

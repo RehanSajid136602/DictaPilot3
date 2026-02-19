@@ -33,8 +33,11 @@ import os
 import platform
 from pathlib import Path
 from datetime import datetime
+from datetime import timedelta
 from typing import Optional, List, Dict, Any
 from dataclasses import dataclass, asdict
+import time
+import time
 
 
 def get_transcriptions_path() -> Path:
@@ -79,12 +82,17 @@ class TranscriptionEntry:
     correction_source: str = ""  # heuristic, llm, adaptive
     ambiguity_flag: bool = False
     transcription_confidence: float = 0.0
+    # Version history for edits
+    edit_history: List[Dict[str, Any]] = None  # List of previous versions
     
     def to_dict(self) -> Dict[str, Any]:
         result = asdict(self)
         # Convert None tags to empty list for JSON serialization
         if result['tags'] is None:
             result['tags'] = []
+        # Convert None edit_history to empty list
+        if result['edit_history'] is None:
+            result['edit_history'] = []
         return result
 
     @classmethod
@@ -110,6 +118,7 @@ class TranscriptionEntry:
             'correction_source': data.get('correction_source', ''),
             'ambiguity_flag': data.get('ambiguity_flag', False),
             'transcription_confidence': data.get('transcription_confidence', 0.0),
+            'edit_history': data.get('edit_history', []),
         }
         return cls(**kwargs)
     
@@ -128,21 +137,53 @@ class TranscriptionStore:
     def __init__(self):
         self.entries = []
         self.session_start = datetime.now().isoformat()
+        self.categories: Dict[str, Dict[str, Any]] = {}  # category_name -> {description, entry_ids, created_at}
+        self.edit_history: Dict[str, List[Dict[str, Any]]] = {}  # entry_id -> list of edits
+    
+    @staticmethod
+    def _migrate_schema(data: Dict[str, Any]) -> Dict[str, Any]:
+        """Migrate older schema versions to current version"""
+        schema_version = data.get("schema_version", "1.0")
+        
+        # Migrate from 1.0/2.0 to 3.0
+        if schema_version in ("1.0", "2.0"):
+            # Add categories section if missing
+            if "categories" not in data:
+                data["categories"] = {}
+            # Add edit_history section if missing
+            if "edit_history" not in data:
+                data["edit_history"] = {}
+            # Add edit_history to each entry if missing
+            if "entries" in data:
+                for entry in data["entries"]:
+                    if "edit_history" not in entry:
+                        entry["edit_history"] = []
+            data["schema_version"] = "3.0"
+        
+        return data
     
     def to_dict(self) -> Dict[str, Any]:
         return {
-            "schema_version": "2.0",  # Updated schema version
+            "schema_version": "3.0",  # Updated schema version
             "created_version": "1.0",  # Original version when store was created
             "session_start": self.session_start,
             "last_updated": datetime.now().isoformat(),
             "total_entries": len(self.entries),
-            "entries": [e.to_dict() for e in self.entries]
+            "entries": [e.to_dict() for e in self.entries],
+            "categories": self.categories,
+            "edit_history": self.edit_history,
         }
     
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "TranscriptionStore":
+        # Apply schema migration
+        data = cls._migrate_schema(data)
+        
         store = cls()
         store.session_start = data.get("session_start", datetime.now().isoformat())
+        store.categories = data.get("categories", {})
+        store.edit_history = data.get("edit_history", {})
+        
         if "entries" in data:
             store.entries = [TranscriptionEntry.from_dict(e) for e in data["entries"]]
         return store
@@ -279,6 +320,80 @@ class TranscriptionStore:
             "action_breakdown": actions,
             "session_start": self.session_start
         }
+    
+    def filter(self) -> "FilterBuilder":
+        """Create a new filter builder for chainable filtering"""
+        return FilterBuilder(self.entries)
+
+
+class FilterBuilder:
+    """Chainable filter builder for transcriptions"""
+    
+    def __init__(self, entries: List[TranscriptionEntry]):
+        self._entries = entries
+        self._filters: List[callable] = []
+    
+    def date_range(self, start: datetime, end: datetime) -> "FilterBuilder":
+        """Filter by date range (inclusive)"""
+        start_ts = start.timestamp()
+        end_ts = end.timestamp()
+        self._filters.append(lambda e: start_ts <= e.timestamp_unix <= end_ts)
+        return self
+    
+    def last_n_days(self, days: int) -> "FilterBuilder":
+        """Filter by last N days"""
+        end = datetime.now()
+        start = end - timedelta(days=days)
+        return self.date_range(start, end)
+    
+    def tags(self, tags: List[str], match_any: bool = False) -> "FilterBuilder":
+        """Filter by tags (AND by default, OR if match_any=True)"""
+        if match_any:
+            self._filters.append(lambda e: any(t in (e.tags or []) for t in tags))
+        else:
+            self._filters.append(lambda e: all(t in (e.tags or []) for t in tags))
+        return self
+    
+    def language(self, language: str) -> "FilterBuilder":
+        """Filter by language code"""
+        self._filters.append(lambda e: e.language == language)
+        return self
+    
+    def quality_above(self, threshold: float) -> "FilterBuilder":
+        """Filter by minimum quality score"""
+        self._filters.append(lambda e: e.quality_score >= threshold)
+        return self
+    
+    def quality_range(self, min_q: float, max_q: float) -> "FilterBuilder":
+        """Filter by quality score range (inclusive)"""
+        self._filters.append(lambda e: min_q <= e.quality_score <= max_q)
+        return self
+    
+    def min_words(self, count: int) -> "FilterBuilder":
+        """Filter by minimum word count"""
+        self._filters.append(lambda e: e.word_count >= count)
+        return self
+    
+    def word_count_range(self, min_w: int, max_w: int) -> "FilterBuilder":
+        """Filter by word count range (inclusive)"""
+        self._filters.append(lambda e: min_w <= e.word_count <= max_w)
+        return self
+    
+    def app(self, app_name: str) -> "FilterBuilder":
+        """Filter by source application name"""
+        self._filters.append(lambda e: e.app_name == app_name)
+        return self
+    
+    def execute(self) -> List[TranscriptionEntry]:
+        """Apply all filters and return matching entries"""
+        result = self._entries
+        for f in self._filters:
+            result = [e for e in result if f(e)]
+        return result
+    
+    def count(self) -> int:
+        """Return count of matching entries"""
+        return len(self.execute())
 
 
 # Global store instance
@@ -354,6 +469,155 @@ def get_storage_info() -> Dict[str, Any]:
         "storage_path": str(get_transcriptions_path()),
         "statistics": store.get_statistics()
     }
+
+
+# ============================================================================
+# Dashboard Aggregation Methods with Caching
+# ============================================================================
+
+# Simple cache with 5-minute TTL
+_aggregation_cache: Dict[str, tuple] = {}
+_CACHE_TTL = 300  # 5 minutes in seconds
+
+
+def _get_cached(key: str) -> Optional[Any]:
+    """Get cached value if not expired"""
+    if key in _aggregation_cache:
+        value, timestamp = _aggregation_cache[key]
+        if time.time() - timestamp < _CACHE_TTL:
+            return value
+    return None
+
+
+def _set_cached(key: str, value: Any):
+    """Set cached value with current timestamp"""
+    _aggregation_cache[key] = (value, time.time())
+
+
+def invalidate_cache():
+    """Invalidate all cached aggregation results"""
+    global _aggregation_cache
+    _aggregation_cache = {}
+
+
+def get_transcription_count_by_date(start_date: datetime, end_date: datetime) -> int:
+    """Get count of transcriptions within date range"""
+    cache_key = f"count_{start_date.isoformat()}_{end_date.isoformat()}"
+    cached = _get_cached(cache_key)
+    if cached is not None:
+        return cached
+    
+    store = get_store()
+    count = sum(
+        1 for entry in store.entries
+        if start_date.timestamp() <= entry.timestamp_unix <= end_date.timestamp()
+    )
+    
+    _set_cached(cache_key, count)
+    return count
+
+
+def get_total_word_count(start_date: datetime, end_date: datetime) -> int:
+    """Get total word count within date range"""
+    cache_key = f"words_{start_date.isoformat()}_{end_date.isoformat()}"
+    cached = _get_cached(cache_key)
+    if cached is not None:
+        return cached
+    
+    store = get_store()
+    total = sum(
+        entry.word_count for entry in store.entries
+        if start_date.timestamp() <= entry.timestamp_unix <= end_date.timestamp()
+    )
+    
+    _set_cached(cache_key, total)
+    return total
+
+
+def get_average_wpm(start_date: datetime, end_date: datetime) -> float:
+    """Get average words per minute within date range"""
+    cache_key = f"wpm_{start_date.isoformat()}_{end_date.isoformat()}"
+    cached = _get_cached(cache_key)
+    if cached is not None:
+        return cached
+    
+    store = get_store()
+    entries_in_range = [
+        entry for entry in store.entries
+        if start_date.timestamp() <= entry.timestamp_unix <= end_date.timestamp()
+        and entry.wpm > 0
+    ]
+    
+    if not entries_in_range:
+        return 0.0
+    
+    avg = sum(entry.wpm for entry in entries_in_range) / len(entries_in_range)
+    _set_cached(cache_key, avg)
+    return avg
+
+
+def get_quality_distribution() -> Dict[str, int]:
+    """Get distribution of quality scores (Excellent, Good, Fair, Poor)"""
+    cache_key = "quality_dist"
+    cached = _get_cached(cache_key)
+    if cached is not None:
+        return cached
+    
+    store = get_store()
+    distribution = {
+        "excellent": 0,  # > 0.9
+        "good": 0,       # 0.7 - 0.9
+        "fair": 0,       # 0.5 - 0.7
+        "poor": 0,       # < 0.5
+    }
+    
+    for entry in store.entries:
+        score = entry.quality_score
+        if score > 0.9:
+            distribution["excellent"] += 1
+        elif score >= 0.7:
+            distribution["good"] += 1
+        elif score >= 0.5:
+            distribution["fair"] += 1
+        else:
+            distribution["poor"] += 1
+    
+    _set_cached(cache_key, distribution)
+    return distribution
+
+
+def get_recent_transcriptions(limit: int = 5) -> List[TranscriptionEntry]:
+    """Get most recent transcriptions"""
+    store = get_store()
+    sorted_entries = sorted(store.entries, key=lambda e: e.timestamp_unix, reverse=True)
+    return sorted_entries[:limit]
+
+
+def get_transcriptions_by_day(days: int = 7) -> Dict[str, int]:
+    """Get transcription count per day for last N days"""
+    cache_key = f"by_day_{days}"
+    cached = _get_cached(cache_key)
+    if cached is not None:
+        return cached
+    
+    store = get_store()
+    now = datetime.now()
+    result = {}
+    
+    for i in range(days):
+        day = now - timedelta(days=i)
+        day_start = day.replace(hour=0, minute=0, second=0, microsecond=0)
+        day_end = day.replace(hour=23, minute=59, second=59, microsecond=999999)
+        
+        count = sum(
+            1 for entry in store.entries
+            if day_start.timestamp() <= entry.timestamp_unix <= day_end.timestamp()
+        )
+        
+        result[day.strftime("%Y-%m-%d")] = count
+    
+    _set_cached(cache_key, result)
+    return result
 
 
 if __name__ == "__main__":

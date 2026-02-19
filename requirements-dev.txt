@@ -20,3 +20,8 @@ coverage>=7.3.0
 # PyGObject is optional for XDG portal integration on Wayland
 # Install with: pip install PyGObject (requires system glib libraries)
 # pygobject>=3.42.0
+
+# Data visualization (optional)
+# pyqtgraph for high-performance charts in dashboard
+# Install with: pip install pyqtgraph
+# pyqtgraph>=0.13.0

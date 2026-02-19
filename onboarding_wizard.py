@@ -1,6 +1,6 @@
 """
 DictaPilot Onboarding Wizard
-Interactive setup wizard for first-time users.
+Modern interactive setup wizard for first-time users.
 
 MIT License
 Copyright (c) 2026 Rehan
@@ -8,377 +8,733 @@ Copyright (c) 2026 Rehan
 
 import os
 import sys
+import tempfile
 from pathlib import Path
 from typing import Optional
 
 try:
     from PySide6.QtCore import Qt, Signal
     from PySide6.QtWidgets import (
-        QWizard, QWizardPage, QVBoxLayout, QHBoxLayout,
+        QApplication, QWidget, QVBoxLayout, QHBoxLayout,
         QLabel, QLineEdit, QPushButton, QComboBox,
-        QTextEdit, QCheckBox, QMessageBox, QScrollArea, QWidget
+        QTextEdit, QCheckBox, QMessageBox, QScrollArea, QFrame,
+        QGridLayout, QButtonGroup, QRadioButton
     )
     from PySide6.QtGui import QFont, QPixmap
     PYSIDE6_AVAILABLE = True
 except ImportError:
     PYSIDE6_AVAILABLE = False
-    QWizard = QWizardPage = object
 
 import sounddevice as sd
+import soundfile as sf
+import numpy as np
 from dotenv import load_dotenv, set_key
+
+from dashboard_components.wizard import ModernWizard, WizardPage, ToastNotification
+from dashboard_components.widgets import StyledButton, StyledComboBox
+from dashboard_components.animations import LoadingSpinner
+from dashboard_themes import get_theme_manager
 
 # Load environment
 load_dotenv()
 
 
-class WelcomePage(QWizardPage):
+class WelcomePage(WizardPage):
     """Welcome page with project overview."""
     
     def __init__(self):
         super().__init__()
-        self.setTitle("Welcome to DictaPilot3")
-        self.setSubTitle("Let's get you set up in under 5 minutes")
+        theme = get_theme_manager()
         
-        # Create scroll area
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QScrollArea.NoFrame)
-        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        # Hero section
+        hero_layout = QVBoxLayout()
+        hero_layout.setSpacing(16)
+        hero_layout.setAlignment(Qt.AlignCenter)
         
-        # Content widget
-        content = QWidget()
-        layout = QVBoxLayout(content)
-        layout.setContentsMargins(10, 10, 10, 10)
-        
-        # Logo/Image (if available)
+        # Logo
         logo_path = Path(__file__).parent / "Dictepilot.png"
         if logo_path.exists():
             logo_label = QLabel()
             pixmap = QPixmap(str(logo_path))
-            logo_label.setPixmap(pixmap.scaled(200, 200, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+            logo_label.setPixmap(pixmap.scaled(120, 120, Qt.KeepAspectRatio, Qt.SmoothTransformation))
             logo_label.setAlignment(Qt.AlignCenter)
-            layout.addWidget(logo_label)
+            hero_layout.addWidget(logo_label)
         
-        # Description
-        desc = QLabel(
-            "<h3>What is DictaPilot3?</h3>"
-            "<p>Cross-platform voice dictation with smart editing.</p>"
-            "<ul>"
-            "<li><b>Hold-to-Talk:</b> Press F9, speak, release</li>"
-            "<li><b>Smart Commands:</b> 'delete that', 'replace X with Y'</li>"
-            "<li><b>Delta Paste:</b> Fast, minimal text updates</li>"
-            "<li><b>Context-Aware:</b> Different settings per app</li>"
-            "<li><b>Privacy-First:</b> Local storage, open source</li>"
-            "</ul>"
-            "<p>This wizard will help you configure:</p>"
-            "<ul>"
-            "<li>Groq API key (required for transcription)</li>"
-            "<li>Hotkey for recording</li>"
-            "<li>Audio device selection</li>"
-            "</ul>"
-        )
-        desc.setWordWrap(True)
-        layout.addWidget(desc)
+        # Title
+        title = QLabel("Welcome to DictaPilot3")
+        title_font = QFont()
+        title_font.setPixelSize(32)
+        title_font.setBold(True)
+        title.setFont(title_font)
+        title.setAlignment(Qt.AlignCenter)
+        title.setStyleSheet(f"color: {theme.get_color('text-primary')};")
+        hero_layout.addWidget(title)
         
-        layout.addStretch()
+        # Subtitle
+        subtitle = QLabel("Let's get you set up in under 5 minutes")
+        subtitle.setAlignment(Qt.AlignCenter)
+        subtitle.setStyleSheet(f"color: {theme.get_color('text-secondary')}; font-size: 16px;")
+        hero_layout.addWidget(subtitle)
         
-        scroll.setWidget(content)
+        self.main_layout.addLayout(hero_layout)
+        self.main_layout.addSpacing(32)
         
-        # Main layout for the page
-        main_layout = QVBoxLayout()
-        main_layout.setContentsMargins(0, 0, 0, 0)
-        main_layout.addWidget(scroll)
-        self.setLayout(main_layout)
+        # Feature cards in 2-column grid
+        features_label = QLabel("Key Features")
+        features_label.setStyleSheet(f"color: {theme.get_color('text-primary')}; font-size: 18px; font-weight: 600;")
+        self.main_layout.addWidget(features_label)
+        
+        grid = QGridLayout()
+        grid.setSpacing(16)
+        
+        features = [
+            ("🎤", "Hold-to-Talk", "Press F9, speak, release"),
+            ("✨", "Smart Commands", "'delete that', 'replace X with Y'"),
+            ("⚡", "Delta Paste", "Fast, minimal text updates"),
+            ("🎯", "Context-Aware", "Different settings per app"),
+            ("🔒", "Privacy-First", "Local storage, open source"),
+            ("🤖", "AI-Powered", "Groq Whisper transcription"),
+        ]
+        
+        for i, (icon, title, desc) in enumerate(features):
+            card = self._create_feature_card(icon, title, desc)
+            grid.addWidget(card, i // 2, i % 2)
+        
+        self.main_layout.addLayout(grid)
+        self.main_layout.addStretch()
+    
+    def _create_feature_card(self, icon: str, title: str, description: str) -> QFrame:
+        """Create a feature card"""
+        theme = get_theme_manager()
+        
+        card = QFrame()
+        card.setStyleSheet(f"""
+            QFrame {{
+                background-color: {theme.get_color('bg-surface0')};
+                border: 1px solid {theme.get_color('bg-surface1')};
+                border-radius: 8px;
+                padding: 16px;
+            }}
+        """)
+        
+        layout = QHBoxLayout(card)
+        layout.setSpacing(12)
+        
+        # Icon
+        icon_label = QLabel(icon)
+        icon_label.setStyleSheet("font-size: 32px;")
+        icon_label.setFixedSize(48, 48)
+        icon_label.setAlignment(Qt.AlignCenter)
+        layout.addWidget(icon_label)
+        
+        # Text
+        text_layout = QVBoxLayout()
+        text_layout.setSpacing(4)
+        
+        title_label = QLabel(title)
+        title_label.setStyleSheet(f"color: {theme.get_color('text-primary')}; font-size: 14px; font-weight: 600;")
+        text_layout.addWidget(title_label)
+        
+        desc_label = QLabel(description)
+        desc_label.setStyleSheet(f"color: {theme.get_color('text-secondary')}; font-size: 12px;")
+        desc_label.setWordWrap(True)
+        text_layout.addWidget(desc_label)
+        
+        layout.addLayout(text_layout, 1)
+        
+        return card
 
 
-class APIKeyPage(QWizardPage):
+class APIKeyPage(WizardPage):
     """API key configuration page."""
     
     def __init__(self):
         super().__init__()
-        self.setTitle("Groq API Key")
-        self.setSubTitle("Enter your free Groq API key for transcription")
+        theme = get_theme_manager()
         
-        # Create scroll area
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QScrollArea.NoFrame)
-        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        # Icon
+        icon_label = QLabel("🔑")
+        icon_label.setStyleSheet("font-size: 48px;")
+        icon_label.setAlignment(Qt.AlignCenter)
+        self.main_layout.addWidget(icon_label)
         
-        # Content widget
-        content = QWidget()
-        layout = QVBoxLayout(content)
-        layout.setContentsMargins(10, 10, 10, 10)
+        # Title
+        title = QLabel("Groq API Key")
+        title_font = QFont()
+        title_font.setPixelSize(24)
+        title_font.setBold(True)
+        title.setFont(title_font)
+        title.setAlignment(Qt.AlignCenter)
+        title.setStyleSheet(f"color: {theme.get_color('text-primary')};")
+        self.main_layout.addWidget(title)
         
+        # Subtitle
+        subtitle = QLabel("Enter your free Groq API key for transcription")
+        subtitle.setAlignment(Qt.AlignCenter)
+        subtitle.setStyleSheet(f"color: {theme.get_color('text-secondary')}; font-size: 14px;")
+        subtitle.setWordWrap(True)
+        self.main_layout.addWidget(subtitle)
+        
+        self.main_layout.addSpacing(24)
+
         # Instructions
-        instructions = QLabel(
-            "<p>DictaPilot3 uses Groq's Whisper API for transcription.</p>"
-            "<p><b>To get your free API key:</b></p>"
-            "<ol>"
-            "<li>Visit <a href='https://console.groq.com'>console.groq.com</a></li>"
-            "<li>Sign up or log in (free)</li>"
-            "<li>Create a new API key</li>"
-            "<li>Copy the key (starts with 'gsk_')</li>"
-            "</ol>"
-        )
-        instructions.setWordWrap(True)
-        instructions.setOpenExternalLinks(True)
-        layout.addWidget(instructions)
+        instructions = QLabel("To get your free API key:")
+        instructions.setStyleSheet(f"color: {theme.get_color('text-primary')}; font-size: 14px; font-weight: 600;")
+        self.main_layout.addWidget(instructions)
         
-        # API key input
-        key_layout = QHBoxLayout()
-        key_layout.addWidget(QLabel("API Key:"))
+        # Step cards
+        steps = [
+            ("1", "Visit console.groq.com", "https://console.groq.com"),
+            ("2", "Sign up or log in", "Free account required"),
+            ("3", "Create a new API key", "In the API Keys section"),
+            ("4", "Copy the key", "Starts with 'gsk_'"),
+        ]
+        
+        for num, title, desc in steps:
+            step_card = self._create_step_card(num, title, desc)
+            self.main_layout.addWidget(step_card)
+        
+        self.main_layout.addSpacing(16)
+        
+        # API key input section
+        input_label = QLabel("Enter your API key:")
+        input_label.setStyleSheet(f"color: {theme.get_color('text-primary')}; font-size: 14px; font-weight: 600;")
+        self.main_layout.addWidget(input_label)
+        
+        input_layout = QHBoxLayout()
+        input_layout.setSpacing(8)
+        
         self.api_key_input = QLineEdit()
         self.api_key_input.setPlaceholderText("gsk_...")
         self.api_key_input.setEchoMode(QLineEdit.Password)
         self.api_key_input.textChanged.connect(self._validate_key)
-        key_layout.addWidget(self.api_key_input)
+        self.api_key_input.setStyleSheet(f"""
+            QLineEdit {{
+                background-color: {theme.get_color('bg-surface0')};
+                border: 2px solid {theme.get_color('bg-surface2')};
+                border-radius: 6px;
+                padding: 12px;
+                font-size: 14px;
+                color: {theme.get_color('text-primary')};
+            }}
+            QLineEdit:focus {{
+                border-color: {theme.get_color('accent-blue')};
+            }}
+        """)
+        input_layout.addWidget(self.api_key_input, 1)
         
         # Show/hide button
-        self.show_key_btn = QPushButton("Show")
+        self.show_key_btn = StyledButton("👁", variant="secondary")
         self.show_key_btn.setCheckable(True)
+        self.show_key_btn.setFixedWidth(48)
         self.show_key_btn.toggled.connect(self._toggle_key_visibility)
-        key_layout.addWidget(self.show_key_btn)
+        self.show_key_btn.setToolTip("Show/Hide API key")
+        input_layout.addWidget(self.show_key_btn)
         
-        layout.addLayout(key_layout)
+        self.main_layout.addLayout(input_layout)
         
-        # Validation message
+        # Validation message with icon
+        validation_layout = QHBoxLayout()
+        validation_layout.setSpacing(8)
+        
+        self.validation_icon = QLabel()
+        self.validation_icon.setFixedSize(16, 16)
+        validation_layout.addWidget(self.validation_icon)
+        
         self.validation_label = QLabel()
-        self.validation_label.setStyleSheet("color: red;")
-        layout.addWidget(self.validation_label)
+        validation_layout.addWidget(self.validation_label, 1)
+        validation_layout.addStretch()
         
-        # Test button
-        self.test_btn = QPushButton("Test API Key")
+        self.main_layout.addLayout(validation_layout)
+        
+        # Test button with spinner
+        test_layout = QHBoxLayout()
+        test_layout.setSpacing(8)
+        
+        self.test_btn = StyledButton("Test Connection", variant="secondary")
         self.test_btn.clicked.connect(self._test_api_key)
         self.test_btn.setEnabled(False)
-        layout.addWidget(self.test_btn)
+        self.test_btn.setMinimumHeight(40)
+        test_layout.addWidget(self.test_btn)
         
-        layout.addStretch()
+        self.spinner = LoadingSpinner(size=24)
+        self.spinner.hide()
+        test_layout.addWidget(self.spinner)
         
-        scroll.setWidget(content)
+        test_layout.addStretch()
         
-        # Main layout for the page
-        main_layout = QVBoxLayout()
-        main_layout.setContentsMargins(0, 0, 0, 0)
-        main_layout.addWidget(scroll)
-        self.setLayout(main_layout)
+        self.main_layout.addLayout(test_layout)
+        self.main_layout.addStretch()
+    
+    def _create_step_card(self, number: str, title: str, description: str) -> QFrame:
+        """Create a numbered step card"""
+        theme = get_theme_manager()
         
-        # Register field for validation
-        self.registerField("api_key*", self.api_key_input)
+        card = QFrame()
+        card.setStyleSheet(f"""
+            QFrame {{
+                background-color: {theme.get_color('bg-surface0')};
+                border: 1px solid {theme.get_color('bg-surface1')};
+                border-radius: 6px;
+                padding: 12px;
+            }}
+        """)
+        
+        layout = QHBoxLayout(card)
+        layout.setSpacing(12)
+        
+        # Number circle
+        number_label = QLabel(number)
+        number_label.setFixedSize(32, 32)
+        number_label.setAlignment(Qt.AlignCenter)
+        number_label.setStyleSheet(f"""
+            QLabel {{
+                background-color: {theme.get_color('accent-blue')};
+                color: white;
+                border-radius: 16px;
+                font-weight: bold;
+                font-size: 14px;
+            }}
+        """)
+        layout.addWidget(number_label)
+        
+        # Text
+        text_layout = QVBoxLayout()
+        text_layout.setSpacing(2)
+        
+        title_label = QLabel(title)
+        title_label.setStyleSheet(f"color: {theme.get_color('text-primary')}; font-size: 13px; font-weight: 600;")
+        text_layout.addWidget(title_label)
+        
+        desc_label = QLabel(description)
+        desc_label.setStyleSheet(f"color: {theme.get_color('text-secondary')}; font-size: 11px;")
+        text_layout.addWidget(desc_label)
+        
+        layout.addLayout(text_layout, 1)
+        
+        return card
     
     def _validate_key(self, text):
-        """Validate API key format."""
+        """Validate API key format with visual feedback"""
+        theme = get_theme_manager()
+        
         if not text:
+            self.validation_icon.setText("")
             self.validation_label.setText("")
             self.test_btn.setEnabled(False)
             return
         
         if not text.startswith("gsk_"):
-            self.validation_label.setText("⚠ API key should start with 'gsk_'")
+            self.validation_icon.setText("⚠")
+            self.validation_icon.setStyleSheet(f"color: {theme.get_color('accent-yellow')};")
+            self.validation_label.setText("API key should start with 'gsk_'")
+            self.validation_label.setStyleSheet(f"color: {theme.get_color('accent-yellow')}; font-size: 12px;")
             self.test_btn.setEnabled(False)
         elif len(text) < 20:
-            self.validation_label.setText("⚠ API key seems too short")
+            self.validation_icon.setText("⚠")
+            self.validation_icon.setStyleSheet(f"color: {theme.get_color('accent-yellow')};")
+            self.validation_label.setText("API key seems too short")
+            self.validation_label.setStyleSheet(f"color: {theme.get_color('accent-yellow')}; font-size: 12px;")
             self.test_btn.setEnabled(False)
         else:
-            self.validation_label.setText("✓ Format looks good")
-            self.validation_label.setStyleSheet("color: green;")
+            self.validation_icon.setText("✓")
+            self.validation_icon.setStyleSheet(f"color: {theme.get_color('accent-green')};")
+            self.validation_label.setText("Format looks good")
+            self.validation_label.setStyleSheet(f"color: {theme.get_color('accent-green')}; font-size: 12px;")
             self.test_btn.setEnabled(True)
     
     def _toggle_key_visibility(self, checked):
-        """Toggle API key visibility."""
+        """Toggle API key visibility"""
         if checked:
             self.api_key_input.setEchoMode(QLineEdit.Normal)
-            self.show_key_btn.setText("Hide")
+            self.show_key_btn.setText("🙈")
         else:
             self.api_key_input.setEchoMode(QLineEdit.Password)
-            self.show_key_btn.setText("Show")
+            self.show_key_btn.setText("👁")
     
     def _test_api_key(self):
-        """Test API key with Groq."""
+        """Test API key with Groq"""
         api_key = self.api_key_input.text()
+        theme = get_theme_manager()
+        
+        self.test_btn.setEnabled(False)
+        self.spinner.start()
         
         try:
             from groq import Groq
             client = Groq(api_key=api_key)
-            # Simple test - list models
             models = client.models.list()
-            QMessageBox.information(
-                self,
-                "Success",
-                "✓ API key is valid!\n\nYou can proceed to the next step."
-            )
-            self.validation_label.setText("✓ API key verified")
-            self.validation_label.setStyleSheet("color: green;")
+            
+            self.validation_icon.setText("✓")
+            self.validation_icon.setStyleSheet(f"color: {theme.get_color('accent-green')};")
+            self.validation_label.setText("API key verified successfully!")
+            self.validation_label.setStyleSheet(f"color: {theme.get_color('accent-green')}; font-size: 12px;")
+            
+            # Show success toast
+            toast = ToastNotification("✓ API key is valid! You can proceed.", "success", self)
+            toast.move(self.width() - 320, 20)
+            toast.show_toast(3000)
+            
         except Exception as e:
-            QMessageBox.warning(
-                self,
-                "API Key Test Failed",
-                f"Could not verify API key:\n\n{str(e)}\n\n"
-                "Please check your key and internet connection."
-            )
-            self.validation_label.setText("✗ Verification failed")
-            self.validation_label.setStyleSheet("color: red;")
+            self.validation_icon.setText("✗")
+            self.validation_icon.setStyleSheet(f"color: {theme.get_color('accent-red')};")
+            self.validation_label.setText(f"Verification failed: {str(e)[:50]}")
+            self.validation_label.setStyleSheet(f"color: {theme.get_color('accent-red')}; font-size: 12px;")
+            
+            # Show error toast
+            toast = ToastNotification("✗ Could not verify API key", "error", self)
+            toast.move(self.width() - 320, 20)
+            toast.show_toast(3000)
+        
+        finally:
+            self.spinner.stop()
+            self.test_btn.setEnabled(True)
+    
+    def validate_page(self) -> bool:
+        """Validate that API key is entered"""
+        text = self.api_key_input.text()
+        return text.startswith("gsk_") and len(text) >= 20
+    
+    def get_api_key(self) -> str:
+        """Get the entered API key"""
+        return self.api_key_input.text()
 
 
-class HotkeyPage(QWizardPage):
+class HotkeyPage(WizardPage):
     """Hotkey configuration page."""
     
     def __init__(self):
         super().__init__()
-        self.setTitle("Hotkey Configuration")
-        self.setSubTitle("Choose your recording hotkey")
+        theme = get_theme_manager()
         
-        # Create scroll area
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QScrollArea.NoFrame)
-        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        # Icon
+        icon_label = QLabel("⌨️")
+        icon_label.setStyleSheet("font-size: 48px;")
+        icon_label.setAlignment(Qt.AlignCenter)
+        self.main_layout.addWidget(icon_label)
         
-        # Content widget
-        content = QWidget()
-        layout = QVBoxLayout(content)
-        layout.setContentsMargins(10, 10, 10, 10)
+        # Title
+        title = QLabel("Hotkey Configuration")
+        title_font = QFont()
+        title_font.setPixelSize(24)
+        title_font.setBold(True)
+        title.setFont(title_font)
+        title.setAlignment(Qt.AlignCenter)
+        title.setStyleSheet(f"color: {theme.get_color('text-primary')};")
+        self.main_layout.addWidget(title)
         
-        # Instructions
-        instructions = QLabel(
-            "<p>Select the hotkey you'll press and hold to record.</p>"
-            "<p><b>Default:</b> F9 (recommended)</p>"
-            "<p>You can change this later in the configuration.</p>"
-        )
-        instructions.setWordWrap(True)
-        layout.addWidget(instructions)
+        # Subtitle
+        subtitle = QLabel("Choose your recording hotkey")
+        subtitle.setAlignment(Qt.AlignCenter)
+        subtitle.setStyleSheet(f"color: {theme.get_color('text-secondary')}; font-size: 14px;")
+        self.main_layout.addWidget(subtitle)
         
-        # Hotkey selection
-        hotkey_layout = QHBoxLayout()
-        hotkey_layout.addWidget(QLabel("Hotkey:"))
+        self.main_layout.addSpacing(24)
         
-        self.hotkey_combo = QComboBox()
-        self.hotkey_combo.addItems([
-            "f9 (recommended)",
-            "f10",
-            "f11",
-            "f12",
-            "ctrl+shift+d",
-            "alt+space",
-        ])
-        hotkey_layout.addWidget(self.hotkey_combo)
-        hotkey_layout.addStretch()
+        # Hotkey selection with radio buttons
+        hotkeys_label = QLabel("Select a hotkey:")
+        hotkeys_label.setStyleSheet(f"color: {theme.get_color('text-primary')}; font-size: 14px; font-weight: 600;")
+        self.main_layout.addWidget(hotkeys_label)
         
-        layout.addLayout(hotkey_layout)
+        self.hotkey_group = QButtonGroup(self)
+        hotkey_options = [
+            ("f9", "F9", "Recommended - doesn't conflict with most apps"),
+            ("f10", "F10", "Alternative function key"),
+            ("f11", "F11", "May conflict with fullscreen"),
+            ("f12", "F12", "May conflict with dev tools"),
+        ]
         
-        # Warning about conflicts
-        warning = QLabel(
-            "⚠ <b>Note:</b> Make sure the hotkey doesn't conflict with other applications."
-        )
-        warning.setWordWrap(True)
-        layout.addWidget(warning)
+        for i, (value, label, desc) in enumerate(hotkey_options):
+            radio_card = self._create_hotkey_card(value, label, desc)
+            self.hotkey_group.addButton(radio_card.findChild(QRadioButton), i)
+            self.main_layout.addWidget(radio_card)
+            
+            if value == "f9":
+                radio_card.findChild(QRadioButton).setChecked(True)
         
-        layout.addStretch()
+        self.main_layout.addSpacing(16)
         
-        scroll.setWidget(content)
+        # Live preview
+        preview_frame = QFrame()
+        preview_frame.setStyleSheet(f"""
+            QFrame {{
+                background-color: {theme.get_color('bg-surface0')};
+                border: 2px dashed {theme.get_color('accent-blue')};
+                border-radius: 8px;
+                padding: 16px;
+            }}
+        """)
+        preview_layout = QVBoxLayout(preview_frame)
         
-        # Main layout for the page
-        main_layout = QVBoxLayout()
-        main_layout.setContentsMargins(0, 0, 0, 0)
-        main_layout.addWidget(scroll)
-        self.setLayout(main_layout)
+        preview_label = QLabel("💡 How it works:")
+        preview_label.setStyleSheet(f"color: {theme.get_color('text-primary')}; font-size: 13px; font-weight: 600;")
+        preview_layout.addWidget(preview_label)
         
-        self.registerField("hotkey", self.hotkey_combo, "currentText")
+        self.preview_text = QLabel("Press and hold <b>F9</b> to record")
+        self.preview_text.setStyleSheet(f"color: {theme.get_color('text-secondary')}; font-size: 13px;")
+        self.preview_text.setWordWrap(True)
+        preview_layout.addWidget(self.preview_text)
+        
+        self.main_layout.addWidget(preview_frame)
+        
+        # Connect signal to update preview
+        self.hotkey_group.buttonClicked.connect(self._update_preview)
+        
+        self.main_layout.addStretch()
     
-    def get_hotkey(self):
-        """Get selected hotkey (without description)."""
-        text = self.hotkey_combo.currentText()
-        return text.split(" ")[0]  # Remove "(recommended)" etc.
+    def _create_hotkey_card(self, value: str, label: str, description: str) -> QFrame:
+        """Create a hotkey selection card"""
+        theme = get_theme_manager()
+        
+        card = QFrame()
+        card.setStyleSheet(f"""
+            QFrame {{
+                background-color: {theme.get_color('bg-surface0')};
+                border: 1px solid {theme.get_color('bg-surface1')};
+                border-radius: 6px;
+                padding: 12px;
+            }}
+            QFrame:hover {{
+                border-color: {theme.get_color('accent-blue')};
+            }}
+        """)
+        
+        layout = QHBoxLayout(card)
+        layout.setSpacing(12)
+        
+        # Radio button
+        radio = QRadioButton()
+        radio.setProperty("hotkey_value", value)
+        layout.addWidget(radio)
+        
+        # Key badge
+        key_badge = QLabel(label)
+        key_badge.setFixedSize(60, 32)
+        key_badge.setAlignment(Qt.AlignCenter)
+        key_badge.setStyleSheet(f"""
+            QLabel {{
+                background-color: {theme.get_color('bg-surface2')};
+                color: {theme.get_color('text-primary')};
+                border-radius: 4px;
+                font-weight: bold;
+                font-size: 13px;
+            }}
+        """)
+        layout.addWidget(key_badge)
+        
+        # Description
+        desc_label = QLabel(description)
+        desc_label.setStyleSheet(f"color: {theme.get_color('text-secondary')}; font-size: 12px;")
+        desc_label.setWordWrap(True)
+        layout.addWidget(desc_label, 1)
+        
+        return card
+    
+    def _update_preview(self, button):
+        """Update the preview text"""
+        hotkey_value = button.property("hotkey_value")
+        self.preview_text.setText(f"Press and hold <b>{hotkey_value.upper()}</b> to record")
+    
+    def get_hotkey(self) -> str:
+        """Get selected hotkey"""
+        checked_button = self.hotkey_group.checkedButton()
+        if checked_button:
+            return checked_button.property("hotkey_value")
+        return "f9"
 
 
-class AudioDevicePage(QWizardPage):
+class AudioDevicePage(WizardPage):
     """Audio device selection page."""
     
     def __init__(self):
         super().__init__()
-        self.setTitle("Audio Device")
-        self.setSubTitle("Select your microphone")
+        theme = get_theme_manager()
         
-        # Create scroll area
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QScrollArea.NoFrame)
-        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        # Icon
+        icon_label = QLabel("🎙️")
+        icon_label.setStyleSheet("font-size: 48px;")
+        icon_label.setAlignment(Qt.AlignCenter)
+        self.main_layout.addWidget(icon_label)
         
-        # Content widget
-        content = QWidget()
-        layout = QVBoxLayout(content)
-        layout.setContentsMargins(10, 10, 10, 10)
+        # Title
+        title = QLabel("Audio Device")
+        title_font = QFont()
+        title_font.setPixelSize(24)
+        title_font.setBold(True)
+        title.setFont(title_font)
+        title.setAlignment(Qt.AlignCenter)
+        title.setStyleSheet(f"color: {theme.get_color('text-primary')};")
+        self.main_layout.addWidget(title)
         
-        # Instructions
-        instructions = QLabel(
-            "<p>Select the microphone you want to use for dictation.</p>"
-            "<p>If you're not sure, the default device usually works fine.</p>"
-        )
-        instructions.setWordWrap(True)
-        layout.addWidget(instructions)
+        # Subtitle
+        subtitle = QLabel("Select your microphone")
+        subtitle.setAlignment(Qt.AlignCenter)
+        subtitle.setStyleSheet(f"color: {theme.get_color('text-secondary')}; font-size: 14px;")
+        self.main_layout.addWidget(subtitle)
+        
+        self.main_layout.addSpacing(24)
         
         # Device selection
-        device_layout = QHBoxLayout()
-        device_layout.addWidget(QLabel("Microphone:"))
+        devices_label = QLabel("Available microphones:")
+        devices_label.setStyleSheet(f"color: {theme.get_color('text-primary')}; font-size: 14px; font-weight: 600;")
+        self.main_layout.addWidget(devices_label)
         
-        self.device_combo = QComboBox()
+        # Device cards with radio buttons
+        self.device_group = QButtonGroup(self)
+        self.device_container = QVBoxLayout()
+        self.device_container.setSpacing(8)
         self._populate_devices()
-        device_layout.addWidget(self.device_combo)
+        
+        self.main_layout.addLayout(self.device_container)
         
         # Refresh button
-        refresh_btn = QPushButton("Refresh")
+        refresh_btn = StyledButton("🔄 Refresh Devices", variant="ghost")
         refresh_btn.clicked.connect(self._populate_devices)
-        device_layout.addWidget(refresh_btn)
+        self.main_layout.addWidget(refresh_btn)
         
-        layout.addLayout(device_layout)
+        self.main_layout.addSpacing(16)
         
-        # Test recording
-        test_layout = QHBoxLayout()
-        self.test_btn = QPushButton("Test Microphone")
+        # Test section
+        test_frame = QFrame()
+        test_frame.setStyleSheet(f"""
+            QFrame {{
+                background-color: {theme.get_color('bg-surface0')};
+                border: 1px solid {theme.get_color('bg-surface1')};
+                border-radius: 8px;
+                padding: 16px;
+            }}
+        """)
+        test_layout = QVBoxLayout(test_frame)
+        test_layout.setSpacing(12)
+        
+        test_label = QLabel("Test your microphone:")
+        test_label.setStyleSheet(f"color: {theme.get_color('text-primary')}; font-size: 13px; font-weight: 600;")
+        test_layout.addWidget(test_label)
+        
+        # Test button and level meter
+        test_controls = QHBoxLayout()
+        test_controls.setSpacing(12)
+        
+        self.test_btn = StyledButton("🎤 Test Recording", variant="secondary")
         self.test_btn.clicked.connect(self._test_microphone)
-        test_layout.addWidget(self.test_btn)
-        test_layout.addStretch()
-        layout.addLayout(test_layout)
+        self.test_btn.setMinimumHeight(40)
+        test_controls.addWidget(self.test_btn)
         
+        self.test_spinner = LoadingSpinner(size=24)
+        self.test_spinner.hide()
+        test_controls.addWidget(self.test_spinner)
+        
+        test_controls.addStretch()
+        test_layout.addLayout(test_controls)
+        
+        # Audio level meter
+        self.level_meter = AudioLevelMeter()
+        test_layout.addWidget(self.level_meter)
+        
+        # Test result
         self.test_result = QLabel()
-        layout.addWidget(self.test_result)
+        self.test_result.setWordWrap(True)
+        test_layout.addWidget(self.test_result)
         
-        layout.addStretch()
-        
-        scroll.setWidget(content)
-        
-        # Main layout for the page
-        main_layout = QVBoxLayout()
-        main_layout.setContentsMargins(0, 0, 0, 0)
-        main_layout.addWidget(scroll)
-        self.setLayout(main_layout)
-        
-        self.registerField("audio_device", self.device_combo, "currentText")
+        self.main_layout.addWidget(test_frame)
+        self.main_layout.addStretch()
     
     def _populate_devices(self):
-        """Populate audio device list."""
-        self.device_combo.clear()
-        self.device_combo.addItem("Default Device", -1)
+        """Populate audio device list"""
+        theme = get_theme_manager()
         
+        # Clear existing devices
+        while self.device_container.count():
+            item = self.device_container.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+        
+        # Add default device
+        default_card = self._create_device_card(-1, "Default Device", True)
+        self.device_group.addButton(default_card.findChild(QRadioButton), 0)
+        default_card.findChild(QRadioButton).setChecked(True)
+        self.device_container.addWidget(default_card)
+        
+        # Add available devices
         try:
             devices = sd.query_devices()
+            button_id = 1
             for idx, device in enumerate(devices):
                 if device['max_input_channels'] > 0:
                     name = device['name']
-                    self.device_combo.addItem(f"{idx}: {name}", idx)
+                    device_card = self._create_device_card(idx, name, False)
+                    self.device_group.addButton(device_card.findChild(QRadioButton), button_id)
+                    self.device_container.addWidget(device_card)
+                    button_id += 1
         except Exception as e:
-            self.test_result.setText(f"⚠ Could not list devices: {e}")
-            self.test_result.setStyleSheet("color: orange;")
+            error_label = QLabel(f"⚠ Could not list devices: {e}")
+            error_label.setStyleSheet(f"color: {theme.get_color('accent-yellow')}; font-size: 12px;")
+            self.device_container.addWidget(error_label)
+    
+    def _create_device_card(self, device_idx: int, name: str, is_default: bool) -> QFrame:
+        """Create a device selection card"""
+        theme = get_theme_manager()
+        
+        card = QFrame()
+        card.setStyleSheet(f"""
+            QFrame {{
+                background-color: {theme.get_color('bg-surface0')};
+                border: 1px solid {theme.get_color('bg-surface1')};
+                border-radius: 6px;
+                padding: 12px;
+            }}
+            QFrame:hover {{
+                border-color: {theme.get_color('accent-blue')};
+            }}
+        """)
+        
+        layout = QHBoxLayout(card)
+        layout.setSpacing(12)
+        
+        # Radio button
+        radio = QRadioButton()
+        radio.setProperty("device_idx", device_idx)
+        layout.addWidget(radio)
+        
+        # Device icon
+        icon = QLabel("🎤")
+        icon.setStyleSheet("font-size: 20px;")
+        layout.addWidget(icon)
+        
+        # Device name
+        name_label = QLabel(name)
+        name_label.setStyleSheet(f"color: {theme.get_color('text-primary')}; font-size: 13px;")
+        name_label.setWordWrap(True)
+        layout.addWidget(name_label, 1)
+        
+        # Default badge
+        if is_default:
+            badge = QLabel("Default")
+            badge.setStyleSheet(f"""
+                QLabel {{
+                    background-color: {theme.get_color('accent-blue')};
+                    color: white;
+                    border-radius: 10px;
+                    padding: 2px 8px;
+                    font-size: 10px;
+                    font-weight: bold;
+                }}
+            """)
+            layout.addWidget(badge)
+        
+        return card
     
     def _test_microphone(self):
-        """Test selected microphone."""
-        device_idx = self.device_combo.currentData()
+        """Test selected microphone"""
+        theme = get_theme_manager()
+        device_idx = self.get_device_index()
+        
+        self.test_btn.setEnabled(False)
+        self.test_spinner.start()
+        self.test_result.setText("Recording 2 seconds...")
+        self.test_result.setStyleSheet(f"color: {theme.get_color('accent-blue')}; font-size: 12px;")
         
         try:
-            self.test_result.setText("Recording 2 seconds...")
-            self.test_result.setStyleSheet("color: blue;")
-            
             # Record 2 seconds
             duration = 2
             sample_rate = 16000
@@ -391,158 +747,249 @@ class AudioDevicePage(QWizardPage):
             sd.wait()
             
             # Check if audio was captured
-            import numpy as np
-            max_amplitude = np.max(np.abs(recording))
+            max_amplitude = float(np.max(np.abs(recording)))
+            
+            # Update level meter
+            self.level_meter.set_level(max_amplitude)
             
             if max_amplitude > 0.01:
-                self.test_result.setText(f"✓ Microphone working! (level: {max_amplitude:.2f})")
-                self.test_result.setStyleSheet("color: green;")
+                self.test_result.setText(f"✓ Microphone working! Audio level: {max_amplitude:.2f}")
+                self.test_result.setStyleSheet(f"color: {theme.get_color('accent-green')}; font-size: 12px;")
+                
+                # Show success toast
+                toast = ToastNotification("✓ Microphone is working!", "success", self)
+                toast.move(self.width() - 320, 20)
+                toast.show_toast(2000)
             else:
                 self.test_result.setText("⚠ No audio detected. Try speaking louder or select a different device.")
-                self.test_result.setStyleSheet("color: orange;")
+                self.test_result.setStyleSheet(f"color: {theme.get_color('accent-yellow')}; font-size: 12px;")
                 
         except Exception as e:
-            self.test_result.setText(f"✗ Test failed: {e}")
-            self.test_result.setStyleSheet("color: red;")
+            self.test_result.setText(f"✗ Test failed: {str(e)}")
+            self.test_result.setStyleSheet(f"color: {theme.get_color('accent-red')}; font-size: 12px;")
+            
+            toast = ToastNotification("✗ Microphone test failed", "error", self)
+            toast.move(self.width() - 320, 20)
+            toast.show_toast(2000)
+        
+        finally:
+            self.test_spinner.stop()
+            self.test_btn.setEnabled(True)
     
-    def get_device_index(self):
-        """Get selected device index."""
-        return self.device_combo.currentData()
+    def get_device_index(self) -> int:
+        """Get selected device index"""
+        checked_button = self.device_group.checkedButton()
+        if checked_button:
+            return checked_button.property("device_idx")
+        return -1
 
 
-class CompletePage(QWizardPage):
+class AudioLevelMeter(QWidget):
+    """Visual audio level meter"""
+    
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.level = 0.0
+        self.theme_manager = get_theme_manager()
+        self.setFixedHeight(24)
+    
+    def set_level(self, level: float):
+        """Set the audio level (0.0 to 1.0)"""
+        self.level = max(0.0, min(1.0, level))
+        self.update()
+    
+    def paintEvent(self, event):
+        """Paint the level meter"""
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+        
+        tokens = self.theme_manager._color_tokens
+        
+        # Background
+        bg_color = QColor(tokens["bg-surface1"])
+        painter.setPen(Qt.NoPen)
+        painter.setBrush(bg_color)
+        painter.drawRoundedRect(0, 0, self.width(), self.height(), 4, 4)
+        
+        # Level bar
+        if self.level > 0:
+            level_width = int(self.width() * self.level)
+            
+            # Color based on level
+            if self.level < 0.3:
+                level_color = QColor(tokens["accent-green"])
+            elif self.level < 0.7:
+                level_color = QColor(tokens["accent-yellow"])
+            else:
+                level_color = QColor(tokens["accent-red"])
+            
+            painter.setBrush(level_color)
+            painter.drawRoundedRect(0, 0, level_width, self.height(), 4, 4)
+
+
+class CompletePage(WizardPage):
     """Completion page with summary."""
     
     def __init__(self):
         super().__init__()
-        self.setTitle("Setup Complete!")
-        self.setSubTitle("You're ready to start dictating")
+        theme = get_theme_manager()
         
-        # Create scroll area
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QScrollArea.NoFrame)
-        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        # Success animation placeholder (icon)
+        icon_label = QLabel("✓")
+        icon_label.setStyleSheet(f"color: {theme.get_color('accent-green')}; font-size: 64px;")
+        icon_label.setAlignment(Qt.AlignCenter)
+        self.main_layout.addWidget(icon_label)
         
-        # Content widget
-        content = QWidget()
-        layout = QVBoxLayout(content)
-        layout.setContentsMargins(10, 10, 10, 10)
+        # Title
+        title = QLabel("Setup Complete!")
+        title_font = QFont()
+        title_font.setPixelSize(32)
+        title_font.setBold(True)
+        title.setFont(title_font)
+        title.setAlignment(Qt.AlignCenter)
+        title.setStyleSheet(f"color: {theme.get_color('text-primary')};")
+        self.main_layout.addWidget(title)
         
-        # Success message
-        success = QLabel(
-            "<h3>✓ Configuration Saved</h3>"
-            "<p>DictaPilot3 is now configured and ready to use.</p>"
-        )
-        layout.addWidget(success)
+        # Subtitle
+        subtitle = QLabel("You're ready to start dictating")
+        subtitle.setAlignment(Qt.AlignCenter)
+        subtitle.setStyleSheet(f"color: {theme.get_color('text-secondary')}; font-size: 16px;")
+        self.main_layout.addWidget(subtitle)
         
-        # Summary
-        self.summary_text = QTextEdit()
-        self.summary_text.setReadOnly(True)
-        self.summary_text.setMaximumHeight(150)
-        layout.addWidget(QLabel("<b>Your Configuration:</b>"))
-        layout.addWidget(self.summary_text)
+        self.main_layout.addSpacing(32)
+        
+        # Configuration summary card
+        summary_label = QLabel("Your Configuration:")
+        summary_label.setStyleSheet(f"color: {theme.get_color('text-primary')}; font-size: 14px; font-weight: 600;")
+        self.main_layout.addWidget(summary_label)
+        
+        self.summary_frame = QFrame()
+        self.summary_frame.setStyleSheet(f"""
+            QFrame {{
+                background-color: {theme.get_color('bg-surface0')};
+                border: 1px solid {theme.get_color('bg-surface1')};
+                border-radius: 8px;
+                padding: 16px;
+            }}
+        """)
+        self.summary_layout = QVBoxLayout(self.summary_frame)
+        self.summary_layout.setSpacing(8)
+        
+        self.main_layout.addWidget(self.summary_frame)
+        
+        self.main_layout.addSpacing(24)
         
         # Next steps
-        next_steps = QLabel(
-            "<h4>Next Steps:</h4>"
-            "<ol>"
-            "<li>Click <b>Finish</b> to close this wizard</li>"
-            "<li>DictaPilot will start automatically</li>"
-            "<li>Open any text editor</li>"
-            "<li>Hold <b>F9</b> (or your chosen hotkey)</li>"
-            "<li>Speak naturally</li>"
-            "<li>Release the hotkey</li>"
-            "<li>Your text appears!</li>"
-            "</ol>"
-            "<p><b>Learn more:</b></p>"
-            "<ul>"
-            "<li><a href='file:///docs/voice-commands.md'>Voice Commands Reference</a></li>"
-            "<li><a href='file:///docs/troubleshooting.md'>Troubleshooting Guide</a></li>"
-            "<li><a href='file:///docs/faq.md'>FAQ</a></li>"
-            "</ul>"
-        )
-        next_steps.setWordWrap(True)
-        next_steps.setOpenExternalLinks(True)
-        layout.addWidget(next_steps)
+        steps_label = QLabel("Next Steps:")
+        steps_label.setStyleSheet(f"color: {theme.get_color('text-primary')}; font-size: 14px; font-weight: 600;")
+        self.main_layout.addWidget(steps_label)
         
-        layout.addStretch()
+        steps = [
+            "1. Click Finish to close this wizard",
+            "2. DictaPilot will start automatically",
+            "3. Open any text editor",
+            "4. Hold your hotkey and speak",
+            "5. Release the hotkey",
+            "6. Your text appears!",
+        ]
         
-        scroll.setWidget(content)
+        for step in steps:
+            step_label = QLabel(step)
+            step_label.setStyleSheet(f"color: {theme.get_color('text-secondary')}; font-size: 13px;")
+            self.main_layout.addWidget(step_label)
         
-        # Main layout for the page
-        main_layout = QVBoxLayout()
-        main_layout.setContentsMargins(0, 0, 0, 0)
-        main_layout.addWidget(scroll)
-        self.setLayout(main_layout)
+        self.main_layout.addStretch()
     
-    def initializePage(self):
-        """Initialize page with configuration summary."""
-        wizard = self.wizard()
+    def set_summary(self, api_key: str, hotkey: str, device_idx: int):
+        """Set the configuration summary"""
+        theme = get_theme_manager()
         
-        # Get configuration
-        api_key = wizard.field("api_key")
-        hotkey = wizard.page(2).get_hotkey()  # HotkeyPage
-        device_idx = wizard.page(3).get_device_index()  # AudioDevicePage
+        # Clear existing summary
+        while self.summary_layout.count():
+            item = self.summary_layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
         
-        # Build summary
-        summary = f"""
-API Key: {api_key[:10]}...{api_key[-4:]}
-Hotkey: {hotkey}
-Audio Device: {"Default" if device_idx == -1 else f"Device {device_idx}"}
-        """.strip()
+        # Add summary items
+        items = [
+            ("🔑", "API Key", f"{api_key[:10]}...{api_key[-4:]}"),
+            ("⌨️", "Hotkey", hotkey.upper()),
+            ("🎙️", "Microphone", "Default Device" if device_idx == -1 else f"Device {device_idx}"),
+        ]
         
-        self.summary_text.setPlainText(summary)
+        for icon, label, value in items:
+            item_layout = QHBoxLayout()
+            item_layout.setSpacing(12)
+            
+            icon_label = QLabel(icon)
+            icon_label.setStyleSheet("font-size: 20px;")
+            icon_label.setFixedWidth(30)
+            item_layout.addWidget(icon_label)
+            
+            label_widget = QLabel(f"{label}:")
+            label_widget.setStyleSheet(f"color: {theme.get_color('text-secondary')}; font-size: 13px;")
+            label_widget.setFixedWidth(100)
+            item_layout.addWidget(label_widget)
+            
+            value_widget = QLabel(value)
+            value_widget.setStyleSheet(f"color: {theme.get_color('text-primary')}; font-size: 13px; font-weight: 600;")
+            item_layout.addWidget(value_widget, 1)
+            
+            self.summary_layout.addLayout(item_layout)
 
 
-class OnboardingWizard(QWizard):
-    """Main onboarding wizard."""
+class OnboardingWizard(ModernWizard):
+    """Audio device selection page."""
     
-    def __init__(self, parent=None):
-        super().__init__(parent)
+    def __init__(self):
+        super().__init__(title="DictaPilot3 Setup")
         
-        self.setWindowTitle("DictaPilot3 Setup Wizard")
-        self.setWizardStyle(QWizard.ModernStyle)
-        self.setOption(QWizard.HaveHelpButton, False)
-        self.setOption(QWizard.CancelButtonOnLeft, True)
-        
-        # Add pages
+        # Create pages
         self.welcome_page = WelcomePage()
         self.api_key_page = APIKeyPage()
         self.hotkey_page = HotkeyPage()
-        self.audio_device_page = AudioDevicePage()
+        self.audio_page = AudioDevicePage()
         self.complete_page = CompletePage()
         
-        self.addPage(self.welcome_page)
-        self.addPage(self.api_key_page)
-        self.addPage(self.hotkey_page)
-        self.addPage(self.audio_device_page)
-        self.addPage(self.complete_page)
+        # Add pages to wizard
+        self.add_page(self.welcome_page, {"icon": "👋", "label": "Welcome"})
+        self.add_page(self.api_key_page, {"icon": "🔑", "label": "API Key"})
+        self.add_page(self.hotkey_page, {"icon": "⌨️", "label": "Hotkey"})
+        self.add_page(self.audio_page, {"icon": "🎙️", "label": "Audio"})
+        self.add_page(self.complete_page, {"icon": "✓", "label": "Complete"})
         
-        # Set minimum size
-        self.setMinimumSize(700, 600)
-        self.resize(750, 650)
+        # Set window properties
+        self.setMinimumSize(800, 650)
+        self.resize(850, 700)
+        self.setWindowTitle("DictaPilot3 Setup Wizard")
+        
+        # Connect to complete page show event
+        self.complete_page.on_show = self._update_summary
+        
+        # Connect finished signal
+        self.finished.connect(self._on_finished)
     
-    def accept(self):
-        """Save configuration when wizard is completed."""
-        try:
+    def _update_summary(self):
+        """Update the summary on the complete page"""
+        api_key = self.api_key_page.get_api_key()
+        hotkey = self.hotkey_page.get_hotkey()
+        device_idx = self.audio_page.get_device_index()
+        
+        self.complete_page.set_summary(api_key, hotkey, device_idx)
+    
+    def _on_finished(self, completed: bool):
+        """Handle wizard completion"""
+        if completed:
             self._save_configuration()
-            super().accept()
-        except Exception as e:
-            QMessageBox.critical(
-                self,
-                "Configuration Error",
-                f"Failed to save configuration:\n\n{e}"
-            )
     
     def _save_configuration(self):
-        """Save configuration to .env file."""
+        """Save configuration to .env file"""
         env_path = Path(__file__).parent / ".env"
         
         # Get values
-        api_key = self.field("api_key")
+        api_key = self.api_key_page.get_api_key()
         hotkey = self.hotkey_page.get_hotkey()
-        device_idx = self.audio_device_page.get_device_index()
+        device_idx = self.audio_page.get_device_index()
         
         # Create or update .env
         if not env_path.exists():
@@ -566,16 +1013,16 @@ def run_wizard():
         print("Install with: pip install PySide6")
         return False
     
-    from PySide6.QtWidgets import QApplication
-    
     app = QApplication.instance()
     if app is None:
         app = QApplication(sys.argv)
     
     wizard = OnboardingWizard()
-    result = wizard.exec()
+    wizard.start()
+    wizard.show()
+    result = app.exec()
     
-    return result == QWizard.Accepted
+    return result == 0
 
 
 if __name__ == "__main__":
