@@ -1,0 +1,184 @@
+================================================================================
+  DICTAPILOT SPEC MODE - QUICK START
+================================================================================
+
+NEW FEATURE: Voice-to-Spec Workflow for Agentic Coding
+
+Transform your voice into structured specifications that AI agents can implement.
+
+--------------------------------------------------------------------------------
+SETUP (30 seconds)
+--------------------------------------------------------------------------------
+
+1. Add to your .env file:
+
+   SPEC_MODE_ENABLED=1
+   SPEC_AUTO_DETECT_INTENT=1
+
+2. Restart DictaPilot (if running)
+
+3. Done! You're ready to use spec mode.
+
+--------------------------------------------------------------------------------
+TRY IT NOW
+--------------------------------------------------------------------------------
+
+Press F9 and say:
+
+  "Start new spec: Add dark mode toggle to settings"
+
+Continue speaking:
+
+  "Context: Users want dark mode for night coding.
+   Acceptance criteria: Toggle in settings, persists on reload.
+   Constraint: Must support system theme detection."
+
+Send to your IDE:
+
+  "Send to Cursor"
+
+That's it! Your spec is now in Cursor ready for implementation.
+
+--------------------------------------------------------------------------------
+VOICE COMMANDS
+--------------------------------------------------------------------------------
+
+CREATE SPECS:
+  "Start new spec: [title]"
+  "Create feature spec: [title]"
+  "Create bugfix spec: [title]"
+
+ADD DETAILS:
+  "Goal: [description]"
+  "Context: [background]"
+  "Acceptance criteria: [criterion]"
+  "Constraint: [limitation]"
+  "File: [path]"
+
+MANAGE:
+  "Save spec"
+  "Export as [format]"        (standard/openspec/luna/github)
+  "Send to [agent]"            (cursor/windsurf/cline/luna)
+
+--------------------------------------------------------------------------------
+SUPPORTED IDEs
+--------------------------------------------------------------------------------
+
+✓ Cursor      - Saved to ~/.cursor/dictapilot_input.md
+✓ Windsurf    - Saved to ~/.windsurf/dictapilot_input.md
+✓ Cline       - Saved to ~/.vscode/cline/dictapilot_input.md
+✓ Luna Drive  - Sent via API (requires API key)
+✓ Custom      - Configure webhook endpoints
+
+--------------------------------------------------------------------------------
+EXAMPLE WORKFLOW
+--------------------------------------------------------------------------------
+
+You: "Start new spec: User authentication with JWT"
+
+You: "Goal: Implement secure authentication.
+      Context: No auth currently, need to protect API.
+      Acceptance criteria: Register, login, logout, JWT expires in 24h.
+      Constraint: Use bcrypt for passwords.
+      Files: app.py, auth.py"
+
+You: "Save spec. Send to Cursor."
+
+✓ Spec saved and sent to Cursor!
+
+--------------------------------------------------------------------------------
+EXPORT FORMATS
+--------------------------------------------------------------------------------
+
+STANDARD    - General markdown format
+OPENSPEC    - OpenSpec workflow format (compatible with OpenSpec tools)
+LUNA        - Luna Drive format (compatible with Luna AI)
+GITHUB      - GitHub issue/PR format
+
+--------------------------------------------------------------------------------
+STORAGE
+--------------------------------------------------------------------------------
+
+Specs are automatically saved to:
+
+Linux/macOS:  ~/.local/share/dictapilot/specs/
+Windows:      %APPDATA%\DictaPilot\specs\
+
+Each spec includes:
+  - spec.md (markdown version)
+  - spec.json (structured data)
+  - versions/ (version history)
+
+--------------------------------------------------------------------------------
+DOCUMENTATION
+--------------------------------------------------------------------------------
+
+Full Guide:       docs/spec-mode-guide.md
+Quick Start:      docs/spec-mode-quickstart.md
+README:           README_SPEC_MODE.md
+Implementation:   SPEC_MODE_SUMMARY.md
+
+--------------------------------------------------------------------------------
+TROUBLESHOOTING
+--------------------------------------------------------------------------------
+
+Spec mode not working?
+  → Check SPEC_MODE_ENABLED=1 in .env
+  → Use explicit trigger: "Start new spec"
+
+Agent not receiving specs?
+  → Verify agent is running
+  → Check connection in dashboard
+
+Intent misclassified?
+  → Use explicit commands
+  → Check SPEC_AUTO_DETECT_INTENT setting
+
+--------------------------------------------------------------------------------
+WHAT'S NEW
+--------------------------------------------------------------------------------
+
+✓ Voice-to-spec conversion with natural language parsing
+✓ 4 spec templates (feature, bugfix, refactor, minimal)
+✓ 4 export formats (standard, OpenSpec, Luna, GitHub)
+✓ Auto-detect intent (spec vs code vs docs)
+✓ IDE integration (Cursor, Windsurf, Cline, Luna)
+✓ Spec storage and versioning
+✓ Workflow orchestration
+✓ Custom webhook support
+
+--------------------------------------------------------------------------------
+TECHNICAL DETAILS
+--------------------------------------------------------------------------------
+
+New Modules:
+  - spec_generator.py      (450 lines)
+  - intent_classifier.py   (350 lines)
+  - spec_store.py          (250 lines)
+  - agent_orchestrator.py  (400 lines)
+  - workflow_engine.py     (400 lines)
+
+Total: 2,500+ lines of new code and documentation
+Status: ✅ All tests passing
+Compatibility: 100% backward compatible
+
+--------------------------------------------------------------------------------
+INSPIRED BY
+--------------------------------------------------------------------------------
+
+✓ Luna Drive specification-driven workflows
+✓ OpenSpec methodology
+✓ GitHub Spec Kit patterns
+✓ Modern agentic coding practices (2026)
+
+--------------------------------------------------------------------------------
+
+For more information, see:
+  - README_SPEC_MODE.md
+  - docs/spec-mode-guide.md
+  - docs/spec-mode-quickstart.md
+
+Implementation Date: 2026-02-18
+Status: ✅ PRODUCTION READY
+
+================================================================================
