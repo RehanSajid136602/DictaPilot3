@@ -100,16 +100,17 @@ class StyledComboBox(QComboBox):
             QComboBox {{
                 background-color: {tokens["bg-surface0"]};
                 color: {tokens["text-primary"]};
-                border: 1px solid {tokens["bg-surface2"]};
+                border: none;
+                border-bottom: 2px solid transparent;
                 border-radius: 6px;
                 padding: 6px 12px;
                 font-size: 14px;
             }}
             QComboBox:hover {{
-                border-color: {tokens["accent-blue"]};
+                border-bottom: 2px solid {tokens["accent-blue"]};
             }}
             QComboBox:focus {{
-                border-color: {tokens["accent-blue"]};
+                border-bottom: 2px solid {tokens["accent-blue"]};
                 outline: 2px solid {tokens["accent-blue"]};
                 outline-offset: 2px;
             }}
@@ -127,7 +128,7 @@ class StyledComboBox(QComboBox):
             QComboBox QAbstractItemView {{
                 background-color: {tokens["bg-surface0"]};
                 color: {tokens["text-primary"]};
-                border: 1px solid {tokens["bg-surface2"]};
+                border: none;
                 selection-background-color: {tokens["accent-blue"]};
                 selection-color: {tokens["bg-base"]};
             }}
@@ -179,16 +180,17 @@ class SearchBar(QWidget):
             QLineEdit {{
                 background-color: {tokens["bg-surface0"]};
                 color: {tokens["text-primary"]};
-                border: 1px solid {tokens["bg-surface2"]};
+                border: none;
+                border-bottom: 2px solid transparent;
                 border-radius: 6px;
                 padding: 8px 12px;
                 font-size: 14px;
             }}
             QLineEdit:hover {{
-                border-color: {tokens["accent-blue"]};
+                border-bottom: 2px solid {tokens["accent-blue"]};
             }}
             QLineEdit:focus {{
-                border-color: {tokens["accent-blue"]};
+                border-bottom: 2px solid {tokens["accent-blue"]};
                 outline: 2px solid {tokens["accent-blue"]};
                 outline-offset: 2px;
             }}
@@ -259,16 +261,16 @@ class StyledCheckBox(QCheckBox):
             QCheckBox::indicator {{
                 width: 18px;
                 height: 18px;
-                border: 2px solid {tokens["bg-surface2"]};
+                border: none;
                 border-radius: 4px;
                 background-color: {tokens["bg-surface0"]};
             }}
             QCheckBox::indicator:hover {{
-                border-color: {tokens["accent-blue"]};
+                background-color: {tokens["bg-surface1"]};
             }}
             QCheckBox::indicator:checked {{
                 background-color: {tokens["accent-blue"]};
-                border-color: {tokens["accent-blue"]};
+                border: none;
                 image: none;
             }}
             QCheckBox::indicator:checked::after {{

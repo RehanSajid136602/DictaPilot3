@@ -97,7 +97,7 @@ class BarChartWidget(ChartWidget):
             # Rounded top corners
             path = QPainterPath()
             rect = QRect(int(x), int(y), int(bar_width), int(bar_height))
-            path.addRoundedRect(rect, 4, 4)
+            path.addRoundedRect(rect, 3, 3)
             painter.drawPath(path)
             
             # Draw label
@@ -371,5 +371,8 @@ class WaveformWidget(ChartWidget):
             painter.setBrush(QBrush(bar_color))
             painter.setPen(Qt.NoPen)
             
+            # Rounded bars
+            path = QPainterPath()
             rect = QRect(int(x), int(y), int(bar_width), int(bar_height))
-            painter.drawRect(rect)
+            path.addRoundedRect(rect, 3, 3)
+            painter.drawPath(path)

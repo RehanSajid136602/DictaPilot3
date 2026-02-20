@@ -37,12 +37,14 @@ from typing import List, Tuple
 # Display server detection for backend selection
 _display_server_cache = None
 
+
 def _get_display_server() -> str:
     """Get cached display server type."""
     global _display_server_cache
     if _display_server_cache is None:
         try:
             from display_server import detect_display_server
+
             _display_server_cache = detect_display_server()
         except ImportError:
             # Fallback detection
@@ -247,7 +249,9 @@ def _osascript_key(combo: str) -> bool:
                     f"using {{{', '.join(valid_mods)}}}"
                 )
             else:
-                script = f'tell application "System Events" to key code {key_code_map[key]}'
+                script = (
+                    f'tell application "System Events" to key code {key_code_map[key]}'
+                )
         elif len(key) == 1:
             key_escaped = key.replace("\\", "\\\\").replace('"', '\\"')
             if valid_mods:
@@ -256,7 +260,9 @@ def _osascript_key(combo: str) -> bool:
                     f"using {{{', '.join(valid_mods)}}}"
                 )
             else:
-                script = f'tell application "System Events" to keystroke "{key_escaped}"'
+                script = (
+                    f'tell application "System Events" to keystroke "{key_escaped}"'
+                )
         else:
             return False
 
@@ -371,10 +377,10 @@ def _x11_type(text: str) -> bool:
 def _backend_order(selected: str) -> List[str]:
     if selected != "auto":
         return [selected]
-    
+
     # Detect display server for auto selection
     display_server = _get_display_server()
-    
+
     if display_server == "wayland":
         # On Wayland: prefer wayland backend (wl-clipboard), then pynput
         return ["wayland", "pynput", "xdotool", "keyboard"]
@@ -388,6 +394,7 @@ def _backend_order(selected: str) -> List[str]:
 # ============================================================================
 # Wayland Paste Backend Functions
 # ============================================================================
+
 
 def _has_wl_clipboard() -> bool:
     """Check if wl-clipboard is available."""
@@ -410,7 +417,7 @@ def _wl_copy(text: str) -> bool:
             check=True,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
-            timeout=2.0
+            timeout=2.0,
         )
         return True
     except Exception:
@@ -430,13 +437,13 @@ def _wtype_key(combo: str) -> bool:
         args.append(parts[-1].lower())
         for part in reversed(parts[:-1]):
             args.extend(["-m", part.lower()])
-        
+
         subprocess.run(
             ["wtype"] + args,
             check=True,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
-            timeout=1.0
+            timeout=1.0,
         )
         return True
     except Exception:
@@ -453,7 +460,7 @@ def _wtype_type(text: str) -> bool:
             check=True,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
-            timeout=5.0
+            timeout=5.0,
         )
         return True
     except Exception:
@@ -464,26 +471,27 @@ def _wayland_paste(text: str, backend: str = "auto") -> bool:
     """Paste text on Wayland using wl-clipboard and keyboard simulation."""
     if not text:
         return True
-    
+
     # Copy to clipboard using wl-copy
     if _wl_copy(text):
         # Small delay for clipboard to settle
         import time
+
         time.sleep(0.05)
-        
+
         # Simulate Ctrl+V
         if _wtype_key("ctrl+v"):
             return True
         # Fallback to pynput for keyboard simulation
         if _pynput_key("ctrl+v"):
             return True
-    
+
     # Fallback: type directly
     if _wtype_type(text):
         return True
     if _pynput_type(text):
         return True
-    
+
     return False
 
 
@@ -491,7 +499,7 @@ def _wayland_backspace(count: int) -> bool:
     """Send backspace on Wayland."""
     if count <= 0:
         return True
-    
+
     if _has_wtype():
         try:
             for _ in range(count):
@@ -500,12 +508,12 @@ def _wayland_backspace(count: int) -> bool:
                     check=True,
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
-                    timeout=0.5
+                    timeout=0.5,
                 )
             return True
         except Exception:
             pass
-    
+
     return _pynput_backspace(count)
 
 
@@ -585,7 +593,9 @@ def _type_text(text: str, backend: str = "auto") -> None:
                 return
             except Exception:
                 continue
-    raise RuntimeError("Failed to type text. Try PASTE_BACKEND=wayland/x11/pynput/xdotool/osascript and check input permissions.")
+    raise RuntimeError(
+        "Failed to type text. Try PASTE_BACKEND=wayland/x11/pynput/xdotool/osascript and check input permissions."
+    )
 
 
 def _copy_with_pyperclip(text: str) -> bool:
@@ -623,19 +633,28 @@ def paste_full_replace(new_text: str, backend: str = "auto") -> None:
 import threading
 
 
-def paste_text(prev_text: str, new_text: str, mode: str = "delta", backend: str = "auto") -> None:
+def paste_text(
+    prev_text: str,
+    new_text: str,
+    mode: str = "delta",
+    backend: str = "auto",
+    preserve_newlines: bool = False,
+) -> None:
     """
     Paste text with CLI environment detection to prevent auto-enter issues.
-    
+
     Args:
         prev_text: Previous text (for delta mode)
         new_text: New text to paste
         mode: Paste mode ("delta" or "full")
         backend: Backend to use ("auto", "x11", "wayland", etc.)
+        preserve_newlines: If True, preserve newlines in text
     """
     # Sanitize text for CLI environments to prevent auto-enter
-    sanitized_text = _sanitize_text_for_environment(new_text or "")
-    
+    sanitized_text = _sanitize_text_for_environment(
+        new_text or "", preserve_newlines=preserve_newlines
+    )
+
     selected_mode = (mode or "delta").strip().lower()
     if selected_mode == "full":
         paste_full_replace(sanitized_text, backend=backend)
@@ -646,7 +665,7 @@ def paste_text(prev_text: str, new_text: str, mode: str = "delta", backend: str 
 def _detect_cli_environment() -> bool:
     """
     Detect if current application is a CLI/terminal environment.
-    
+
     Returns:
         True if in a terminal/CLI environment
     """
@@ -654,82 +673,101 @@ def _detect_cli_environment() -> bool:
     cli_auto_detect = os.getenv("CLI_AUTO_DETECT", "1").strip()
     if cli_auto_detect.lower() in ("0", "false", "no", "off"):
         return False
-    
+
     try:
         from app_context import is_cli_application, get_context
-        
+
         # Get current application context
         context = get_context()
         if context and context.app_id:
             return is_cli_application(context.app_id)
     except Exception:
         pass
-    
+
     # Fallback: check ACTIVE_APP environment variable
     active_app = os.getenv("ACTIVE_APP", "").lower()
     if active_app:
         cli_keywords = [
-            'terminal', 'iterm', 'konsole', 'gnome-terminal', 'xterm',
-            'alacritty', 'kitty', 'wezterm', 'cmd', 'powershell', 'pwsh',
-            'bash', 'zsh', 'fish', 'shell', 'console'
+            "terminal",
+            "iterm",
+            "konsole",
+            "gnome-terminal",
+            "xterm",
+            "alacritty",
+            "kitty",
+            "wezterm",
+            "cmd",
+            "powershell",
+            "pwsh",
+            "bash",
+            "zsh",
+            "fish",
+            "shell",
+            "console",
         ]
         return any(keyword in active_app for keyword in cli_keywords)
-    
+
     return False
 
 
 def _sanitize_for_cli(text: str) -> str:
     """
     Sanitize text for CLI environments by removing/replacing newlines.
-    
+
     Args:
         text: Text to sanitize
-        
+
     Returns:
         Sanitized text with newlines replaced by spaces
     """
     if not text:
         return text
-    
+
     # Check if user explicitly wants newlines (said "new line" or "enter")
     newline_keyword = os.getenv("CLI_NEWLINE_KEYWORD", "new line").lower()
     if newline_keyword in text.lower():
         # User explicitly requested newlines, preserve them
         return text
-    
+
     # Replace newlines with spaces to prevent auto-enter
     # This keeps the text on a single line in the terminal
-    sanitized = text.replace('\n', ' ').replace('\r', ' ')
-    
+    sanitized = text.replace("\n", " ").replace("\r", " ")
+
     # Clean up multiple spaces
     import re
-    sanitized = re.sub(r'\s+', ' ', sanitized)
-    
+
+    sanitized = re.sub(r"\s+", " ", sanitized)
+
     return sanitized.strip()
 
 
-def _sanitize_text_for_environment(text: str) -> str:
+def _sanitize_text_for_environment(text: str, preserve_newlines: bool = False) -> str:
     """
     Sanitize text based on current environment (CLI vs GUI).
-    
+
     Args:
         text: Text to sanitize
-        
+        preserve_newlines: If True, skip newline stripping
+
     Returns:
         Sanitized text appropriate for the environment
     """
     if not text:
         return text
-    
+
+    # If preserve_newlines is True, return text as-is
+    if preserve_newlines:
+        return text
+
     # Check if CLI newline stripping is enabled
     cli_strip_newlines = os.getenv("CLI_STRIP_NEWLINES", "1").strip()
     if cli_strip_newlines.lower() in ("0", "false", "no", "off"):
         return text
-    
+
     # Detect CLI environment and sanitize if needed
     if _detect_cli_environment():
         return _sanitize_for_cli(text)
-    
+
     # Not in CLI, return text as-is
     return text
 
@@ -776,10 +814,17 @@ class PasteWorker:
             else:
                 # Sleep briefly to prevent busy waiting
                 import time
+
                 time.sleep(0.01)
 
-    def paste_async(self, prev_text: str, new_text: str, mode: str = "delta",
-                   backend: str = "auto", callback=None):
+    def paste_async(
+        self,
+        prev_text: str,
+        new_text: str,
+        mode: str = "delta",
+        backend: str = "auto",
+        callback=None,
+    ):
         """
         Queue an asynchronous paste operation
         """
@@ -793,8 +838,13 @@ class PasteWorker:
 _global_paste_worker = PasteWorker()
 
 
-def paste_text_async(prev_text: str, new_text: str, mode: str = "delta",
-                    backend: str = "auto", callback=None) -> None:
+def paste_text_async(
+    prev_text: str,
+    new_text: str,
+    mode: str = "delta",
+    backend: str = "auto",
+    callback=None,
+) -> None:
     """
     Asynchronously paste text without blocking the UI
     """

@@ -81,21 +81,9 @@ a = Analysis(
         'xml.etree',
         'xml.etree.ElementTree',
         
-        # tkinter (sometimes needed by other imports)
-        'tkinter',
-        'tkinter.ttk',
-        'tkinter.font',
-        
         # Logging
         'logging',
         'logging.handlers',
-        
-        # SSL/TLS for API calls
-        'ssl',
-        'urllib3',
-        'urllib3.util',
-        'urllib3.util.ssl_',
-        'certifi',
         
         # HTTP libraries for API
         'http.client',
@@ -115,15 +103,6 @@ a = Analysis(
         # Platform-specific
         'platform',
         'sysconfig',
-        
-        # Cryptography for groq
-        'cryptography',
-        'cryptography.hazmat',
-        'cryptography.hazmat.bindings',
-        'cryptography.hazmat.bindings._rust',
-        
-        # cffi if needed
-        '_cffi_backend',
         
         # PIL/Pillow
         'PIL',
@@ -145,9 +124,7 @@ a = Analysis(
         'settings_dashboard',
         'onboarding_wizard',
         'secrets_manager',
-        'ide_integration',
         'diff_utils',
-        'agent_formatter',
         
         # Audio modules
         'audio.smoothing',
@@ -157,6 +134,35 @@ a = Analysis(
         # Platform backends
         'x11_backend',
         'wayland_backend',
+        
+        # Dashboard modules
+        'dashboard_main',
+        'dashboard_themes',
+        'dashboard_views.home_view',
+        'dashboard_views.settings_view',
+        'dashboard_views.statistics_view',
+        'dashboard_views.diagnostics_view',
+        'dashboard_views.history_view',
+        'dashboard_components.cards',
+        'dashboard_components.charts',
+        'dashboard_components.widgets',
+        'dashboard_components.animations',
+        'dashboard_components.notifications',
+        'dashboard_components.wizard',
+        'dashboard_components.accessibility',
+        
+        # Additional dependencies that may be needed
+        'dateutil',
+        'dateutil.parser',
+        'dateutil.tz',
+        'pytz',
+        'certifi',
+        'idna',
+        'charset_normalizer',
+        'requests',
+        'websockets',
+        'websockets.client',
+        'websockets.server',
     ],
     hookspath=[],
     hooksconfig={},
@@ -172,6 +178,8 @@ a = Analysis(
         'scripts',
         'auto_start',
         'portable-start',
+        'web_ui',
+        'web_server',
         '.git',
         '.github',
         'venv',
@@ -202,7 +210,7 @@ exe = EXE(
         'vcruntime140_1.dll',
     ],
     runtime_tmpdir=None,
-    console=False,  # Set to False for GUI application (no console window)
+    console=True,  # Set to True for debugging (shows console window)
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,

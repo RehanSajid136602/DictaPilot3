@@ -44,12 +44,19 @@ from dotenv import load_dotenv
 
 # Check for first run before loading other modules
 load_dotenv()
-SETUP_COMPLETED = os.getenv("SETUP_COMPLETED", "0").strip() not in {"0", "false", "no", "off"}
+SETUP_COMPLETED = os.getenv("SETUP_COMPLETED", "0").strip() not in {
+    "0",
+    "false",
+    "no",
+    "off",
+}
+
 
 # Detect if running as PyInstaller frozen executable
 def is_frozen():
     """Check if running as a frozen (packaged) executable."""
-    return getattr(sys, 'frozen', False)
+    return getattr(sys, "frozen", False)
+
 
 def get_bundle_dir():
     """Get the directory where the bundled resources are located."""
@@ -57,10 +64,12 @@ def get_bundle_dir():
         return os.path.dirname(sys.executable)
     return os.path.dirname(os.path.abspath(__file__))
 
+
 # Launch onboarding wizard if first run
 if not SETUP_COMPLETED and "--no-wizard" not in sys.argv and "--gui" not in sys.argv:
     try:
         from onboarding_wizard import run_wizard
+
         print("First run detected. Launching setup wizard...")
         if not run_wizard():
             print("Setup cancelled. Exiting.")
@@ -74,7 +83,12 @@ if not SETUP_COMPLETED and "--no-wizard" not in sys.argv and "--gui" not in sys.
         print("Continuing with manual setup.")
 
 from paste_utils import paste_text
-from display_server import detect_display_server, is_wayland, is_x11, get_display_server_info
+from display_server import (
+    detect_display_server,
+    is_wayland,
+    is_x11,
+    get_display_server_info,
+)
 from smart_editor import (
     TranscriptState,
     smart_update_state,
@@ -86,17 +100,26 @@ from smart_editor import (
 )
 from transcription_store import add_transcription, get_storage_info, export_all_to_text
 from audio_buffer import ChunkedAudioBuffer, AudioChunk
-from streaming_transcriber import StreamingTranscriber, DualPassTranscriber, StreamingResult
 
 try:
     from PySide6.QtCore import QPoint, QRectF, Qt, QTimer
-    from PySide6.QtGui import QColor, QGuiApplication, QImage, QLinearGradient, QPainter, QPainterPath, QPixmap
+    from PySide6.QtGui import (
+        QColor,
+        QGuiApplication,
+        QImage,
+        QLinearGradient,
+        QPainter,
+        QPainterPath,
+        QPixmap,
+    )
     from PySide6.QtWidgets import QApplication, QWidget
 
     PYSIDE6_AVAILABLE = True
 except Exception:
     QPoint = QRectF = Qt = QTimer = None
-    QColor = QGuiApplication = QImage = QLinearGradient = QPainter = QPainterPath = QPixmap = None
+    QColor = QGuiApplication = QImage = QLinearGradient = QPainter = QPainterPath = (
+        QPixmap
+    ) = None
     QApplication = QWidget = None
     PYSIDE6_AVAILABLE = False
 
@@ -112,8 +135,13 @@ _GROQ_CLIENT = None
 
 API_KEY = os.getenv("GROQ_API_KEY")
 HOTKEY = os.getenv("HOTKEY", "f9")  # default hotkey: F9 (press-and-hold)
-GROQ_WHISPER_MODEL = os.getenv("GROQ_WHISPER_MODEL", "whisper-large-v3-turbo").strip() or "whisper-large-v3-turbo"
-GROQ_CHAT_MODEL = os.getenv("GROQ_CHAT_MODEL", "openai/gpt-oss-120b").strip() or "openai/gpt-oss-120b"
+GROQ_WHISPER_MODEL = (
+    os.getenv("GROQ_WHISPER_MODEL", "whisper-large-v3-turbo").strip()
+    or "whisper-large-v3-turbo"
+)
+GROQ_CHAT_MODEL = (
+    os.getenv("GROQ_CHAT_MODEL", "openai/gpt-oss-120b").strip() or "openai/gpt-oss-120b"
+)
 
 
 def _env_flag(name: str, default: str = "1") -> bool:
@@ -139,6 +167,7 @@ if PASTE_BACKEND not in {"auto", "keyboard", "pynput", "xdotool", "x11", "osascr
 if HOTKEY_BACKEND not in {"auto", "keyboard", "pynput", "x11"}:
     HOTKEY_BACKEND = "auto"
 
+
 # audio defaults
 def _env_int(name: str, default: int) -> int:
     try:
@@ -147,7 +176,12 @@ def _env_int(name: str, default: int) -> int:
         return default
 
 
-def _env_float(name: str, default: float, minimum: float | None = None, maximum: float | None = None) -> float:
+def _env_float(
+    name: str,
+    default: float,
+    minimum: float | None = None,
+    maximum: float | None = None,
+) -> float:
     try:
         value = float(os.getenv(name, str(default)).strip())
     except Exception:
@@ -164,21 +198,10 @@ CHANNELS = _env_int("CHANNELS", 1)
 TRIM_SILENCE = _env_flag("TRIM_SILENCE", "1")
 SILENCE_THRESHOLD = float(os.getenv("SILENCE_THRESHOLD", "0.02"))
 
-# Streaming transcription settings
-STREAMING_ENABLED = _env_flag("STREAMING_ENABLED", "1")
-STREAMING_CHUNK_DURATION = _env_float("STREAMING_CHUNK_DURATION", 1.5, 0.5, 5.0)
-STREAMING_CHUNK_OVERLAP = _env_float("STREAMING_CHUNK_OVERLAP", 0.3, 0.0, 1.0)
-STREAMING_MIN_CHUNKS = _env_int("STREAMING_MIN_CHUNKS", 2)
-STREAMING_FINAL_PASS = _env_flag("STREAMING_FINAL_PASS", "1")
-
-# Agent mode settings
-AGENT_AUTO_DETECT = _env_flag("AGENT_AUTO_DETECT", "1")
-AGENT_OUTPUT_FORMAT = os.getenv("AGENT_OUTPUT_FORMAT", "structured").strip().lower()
-AGENT_WEBHOOK_URL = os.getenv("AGENT_WEBHOOK_URL", "").strip()
-AGENT_IDE_INTEGRATION = _env_flag("AGENT_IDE_INTEGRATION", "0")
-
 FLOATING_THEME = os.getenv("FLOATING_THEME", "professional_minimal").strip().lower()
-FLOATING_MOTION_PROFILE = os.getenv("FLOATING_MOTION_PROFILE", "expressive").strip().lower()
+FLOATING_MOTION_PROFILE = (
+    os.getenv("FLOATING_MOTION_PROFILE", "expressive").strip().lower()
+)
 FLOATING_GLOW_INTENSITY = _env_float("FLOATING_GLOW_INTENSITY", 1.0, 0.0, 1.6)
 FLOATING_BAR_RADIUS = _env_float("FLOATING_BAR_RADIUS", 1.0, 0.5, 1.5)
 FLOATING_BORDER_ALPHA = int(_env_float("FLOATING_BORDER_ALPHA", 72.0, 8.0, 255.0))
@@ -191,6 +214,23 @@ FLOATING_GLASSMORPHISM = _env_flag("FLOATING_GLASSMORPHISM", "1")
 FLOATING_ANIMATIONS = _env_flag("FLOATING_ANIMATIONS", "1")
 FLOATING_REDUCED_MOTION = _env_flag("FLOATING_REDUCED_MOTION", "0")
 FLOATING_LAYOUT = os.getenv("FLOATING_LAYOUT", "pill").strip().lower()
+
+# Enhanced waveform visualization settings (2026 redesign)
+FLOATING_WAVEFORM_BARS = _env_int(
+    "FLOATING_WAVEFORM_BARS", 11
+)  # 11 bars for richer visualization
+FLOATING_WAVEFORM_SMOOTHING = (
+    os.getenv("FLOATING_WAVEFORM_SMOOTHING", "responsive").strip().lower()
+)
+FLOATING_WAVEFORM_GLOW = _env_flag("FLOATING_WAVEFORM_GLOW", "1")
+FLOATING_STATE_ANIMATION_MS = _env_int("FLOATING_STATE_ANIMATION_MS", 250)
+
+# State-specific accent colors for enhanced visual feedback
+# "listening" (record) uses cyan/blue, "speaking" (processing) uses purple/magenta
+FLOATING_RECORDING_COLOR = os.getenv("FLOATING_RECORDING_COLOR", "cyan").strip().lower()
+FLOATING_PROCESSING_COLOR = (
+    os.getenv("FLOATING_PROCESSING_COLOR", "purple").strip().lower()
+)
 
 _VISUAL_STATE_BY_MODE = {
     "record": "record",
@@ -210,11 +250,23 @@ _ACCENT_COLOR_PALETTES = {
         "dark": "#2563EB",
         "glow": (59, 130, 246, 102),
     },
+    "cyan": {
+        "primary": "#06B6D4",
+        "light": "#22D3EE",
+        "dark": "#0891B2",
+        "glow": (6, 182, 212, 102),
+    },
     "purple": {
         "primary": "#8B5CF6",
         "light": "#A78BFA",
         "dark": "#7C3AED",
         "glow": (139, 92, 246, 102),
+    },
+    "magenta": {
+        "primary": "#D946EF",
+        "light": "#E879F9",
+        "dark": "#C026D3",
+        "glow": (217, 70, 239, 102),
     },
     "green": {
         "primary": "#10B981",
@@ -310,8 +362,8 @@ _FLOATING_THEME_PRESETS = {
 
 _MOTION_PROFILE_PRESETS = {
     "expressive": {
-        "rise": 0.92,  # Increased from 0.82 for faster response
-        "decay": 0.25,  # Increased from 0.20 for faster decay
+        "rise": 0.82,
+        "decay": 0.20,
         "env_keep": 0.68,
         "env_new": 0.32,
         "center_drop": 0.30,
@@ -404,11 +456,15 @@ def _resolve_visual_state(mode: str) -> str:
 
 
 def _resolve_theme(theme_name: str) -> dict:
-    return _FLOATING_THEME_PRESETS.get(theme_name, _FLOATING_THEME_PRESETS["professional_minimal"])
+    return _FLOATING_THEME_PRESETS.get(
+        theme_name, _FLOATING_THEME_PRESETS["professional_minimal"]
+    )
 
 
 def _resolve_motion_profile(profile_name: str) -> dict:
-    return _MOTION_PROFILE_PRESETS.get(profile_name, _MOTION_PROFILE_PRESETS["expressive"])
+    return _MOTION_PROFILE_PRESETS.get(
+        profile_name, _MOTION_PROFILE_PRESETS["expressive"]
+    )
 
 
 def _resolve_accent_color(color_name: str) -> dict:
@@ -433,15 +489,37 @@ def _compute_bar_target(
         amp_idx = min(bar_idx, len(amplitudes) - 1)
         local = min(1.0, amplitudes[amp_idx] / max(0.10, level_peak))
         local_drive = local ** motion["record_local_gamma"]
-        rhythm = motion["record_base"] + motion["record_wave"] * np.sin(now * motion["record_freq"] + bar_idx * motion["record_phase"])
-        drive = (motion["record_local_mix"] * local_drive) + ((1.0 - motion["record_local_mix"]) * expressive_level)
+        rhythm = motion["record_base"] + motion["record_wave"] * np.sin(
+            now * motion["record_freq"] + bar_idx * motion["record_phase"]
+        )
+        drive = (motion["record_local_mix"] * local_drive) + (
+            (1.0 - motion["record_local_mix"]) * expressive_level
+        )
         target = motion["record_floor"] + (drive * center_bias * rhythm)
     elif visual_state == "processing":
-        target = motion["processing_floor"] + (np.sin(now * motion["processing_freq"] + bar_idx * motion["processing_phase"]) + 1.0) * motion["processing_wave"]
+        target = (
+            motion["processing_floor"]
+            + (
+                np.sin(
+                    now * motion["processing_freq"]
+                    + bar_idx * motion["processing_phase"]
+                )
+                + 1.0
+            )
+            * motion["processing_wave"]
+        )
     elif visual_state == "done":
-        target = motion["done_floor"] + (np.sin(now * motion["done_freq"] + bar_idx * motion["done_phase"]) + 1.0) * motion["done_wave"]
+        target = (
+            motion["done_floor"]
+            + (np.sin(now * motion["done_freq"] + bar_idx * motion["done_phase"]) + 1.0)
+            * motion["done_wave"]
+        )
     else:
-        target = motion["idle_floor"] + (np.sin(now * motion["idle_freq"] + bar_idx * motion["idle_phase"]) + 1.0) * motion["idle_wave"]
+        target = (
+            motion["idle_floor"]
+            + (np.sin(now * motion["idle_freq"] + bar_idx * motion["idle_phase"]) + 1.0)
+            * motion["idle_wave"]
+        )
     return _clamp(target, 0.0, 1.0)
 
 
@@ -490,7 +568,9 @@ def _build_waveform_points(
         carrier = np.sin(now * base_speed + i * 0.62)
         texture = np.sin(now * 3.8 + i * 0.31) * 0.14
         drive = _clamp(max(amp, energy_floor), 0.0, 1.0)
-        strength = _clamp((0.30 + drive * 0.88) * edge + (0.16 if is_recording else 0.13), 0.30, 1.0)
+        strength = _clamp(
+            (0.30 + drive * 0.88) * edge + (0.16 if is_recording else 0.13), 0.30, 1.0
+        )
         y = mid_y + (carrier + texture) * (excursion * strength)
         x = start_x + i * step_x
         points.append((x, _clamp(y, min_y, max_y)))
@@ -514,7 +594,11 @@ def _hotkey_token_for_pynput(hotkey: str, pynput_keyboard):
     }
     if key_name in mapping:
         return mapping[key_name]
-    if key_name.startswith("f") and key_name[1:].isdigit() and hasattr(pynput_keyboard.Key, key_name):
+    if (
+        key_name.startswith("f")
+        and key_name[1:].isdigit()
+        and hasattr(pynput_keyboard.Key, key_name)
+    ):
         return getattr(pynput_keyboard.Key, key_name)
     if len(key_name) == 1:
         return pynput_keyboard.KeyCode.from_char(key_name)
@@ -535,7 +619,9 @@ class HotkeyManager:
         import keyboard
 
         press_hook = keyboard.on_press_key(self.hotkey, lambda _: self._handle_press())
-        release_hook = keyboard.on_release_key(self.hotkey, lambda _: self._handle_release())
+        release_hook = keyboard.on_release_key(
+            self.hotkey, lambda _: self._handle_release()
+        )
 
         def _stop():
             try:
@@ -559,7 +645,10 @@ class HotkeyManager:
         def _matches(key_obj):
             try:
                 if isinstance(token, pynput_keyboard.KeyCode):
-                    return getattr(key_obj, "char", None) and key_obj.char.lower() == token.char.lower()
+                    return (
+                        getattr(key_obj, "char", None)
+                        and key_obj.char.lower() == token.char.lower()
+                    )
                 return key_obj == token
             except Exception:
                 return False
@@ -605,16 +694,18 @@ class HotkeyManager:
     def _try_start_wayland(self):
         """Start hotkey listener using Wayland backend (pynput fallback for now)."""
         from wayland_backend import WaylandHotkeyBackend, has_portal, has_pynput
-        
+
         # For now, use pynput on Wayland as portal integration requires
         # more complex async handling
         if has_pynput():
             self._try_start_pynput()
             return
-        
+
         if not has_portal() and not has_pynput():
-            raise RuntimeError("Neither PyGObject (portal) nor pynput available for Wayland hotkey backend")
-        
+            raise RuntimeError(
+                "Neither PyGObject (portal) nor pynput available for Wayland hotkey backend"
+            )
+
         # Fall back to pynput
         self._try_start_pynput()
 
@@ -711,6 +802,7 @@ class Recorder:
         self._started_event.clear()
         self._running.set()
         self.amplitude_callback = amplitude_callback
+
         def _run():
             errors = []
             candidates = []
@@ -720,7 +812,11 @@ class Recorder:
 
             for candidate in candidates:
                 try:
-                    with sd.InputStream(samplerate=candidate, channels=self.channels, callback=self._callback):
+                    with sd.InputStream(
+                        samplerate=candidate,
+                        channels=self.channels,
+                        callback=self._callback,
+                    ):
                         self._active_sr = candidate
                         # signal that the input stream opened successfully
                         self._started_event.set()
@@ -816,7 +912,9 @@ class _QtFloatingWindow(QWidget):
                 self._manager._set_close_button_pressed(True)
                 event.accept()
                 return
-            self._drag_offset = event.globalPosition().toPoint() - self.frameGeometry().topLeft()
+            self._drag_offset = (
+                event.globalPosition().toPoint() - self.frameGeometry().topLeft()
+            )
             event.accept()
             return
         super().mousePressEvent(event)
@@ -868,14 +966,14 @@ class _QtFloatingWindow(QWidget):
 
 class _QtPreviewWindow(QWidget):
     """Preview window for streaming transcription results"""
-    
+
     def __init__(self, manager):
         super().__init__(None)
         self._manager = manager
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.Tool | Qt.WindowStaysOnTopHint)
         self.setAttribute(Qt.WA_TranslucentBackground, True)
         self.setAttribute(Qt.WA_ShowWithoutActivating, True)
-    
+
     def paintEvent(self, event):
         self._manager._paint_preview(self)
 
@@ -894,25 +992,28 @@ class GUIManager:
 
         self._mode = "idle"
         self._display_text = "Ready"
-        
+
         # Modern UI settings
         self._ui_style = FLOATING_UI_STYLE
         self._accent_color = _resolve_accent_color(FLOATING_ACCENT_COLOR)
+        # State-specific accent colors for enhanced visual feedback
+        self._recording_accent = _resolve_accent_color(FLOATING_RECORDING_COLOR)
+        self._processing_accent = _resolve_accent_color(FLOATING_PROCESSING_COLOR)
         self._glassmorphism_enabled = FLOATING_GLASSMORPHISM
         self._animations_enabled = FLOATING_ANIMATIONS
         self._reduced_motion = FLOATING_REDUCED_MOTION
         self._layout_style = FLOATING_LAYOUT
-        
+
         # Animation state for modern UI
         self._breathing_phase = 0.0
         self._pulse_phase = 0.0
         self._glow_intensity_current = 0.0
         self._state_transition_progress = 1.0
         self._last_state = "idle"
-        
+
         self._full_width = max(120, _env_int("FLOATING_WIDTH", 180))
         self._full_height = max(34, _env_int("FLOATING_HEIGHT", 44))
-        self._idle_scale = 0.75  # Increased from 0.50 for better visibility
+        self._idle_scale = 0.50
         self._window_scale = 1.0
         self._target_window_scale = 1.0
         self._scale_smoothing = 0.34
@@ -920,16 +1021,23 @@ class GUIManager:
         self._window_hover = False
         self._width = self._full_width
         self._height = self._full_height
-        self._bar_count = max(3, min(6, _env_int("FLOATING_BAR_COUNT", 5)))
+        self._bar_count = max(7, min(15, _env_int("FLOATING_WAVEFORM_BARS", 11)))
         self._amplitudes = [0.0] * self._bar_count
         self._current_heights = [0.0] * self._bar_count
+        # Enhanced amplitude tracking with peak hold
         self._level_env = 0.0
         self._level_peak = 0.12
+        self._peak_hold = 0.0
+        self._peak_decay = 0.97  # Slow decay for visual appeal
+        self._attack_speed = 0.65  # Fast attack for responsiveness
+        self._release_speed = 0.12  # Slow release for smooth transitions
         self._logo_image = None
         self._logo_mtime = None
         self._last_logo_check = 0.0
         self._platform_name = platform.system()
-        self._show_close_button = (os.getenv("FLOATING_CLOSE_BUTTON", "0").strip().lower() not in {"0", "false", "no", "off"})
+        self._show_close_button = os.getenv(
+            "FLOATING_CLOSE_BUTTON", "0"
+        ).strip().lower() not in {"0", "false", "no", "off"}
         self._close_button_hover = False
         self._close_button_pressed = False
         self._on_close_requested = on_close_requested
@@ -949,7 +1057,6 @@ class GUIManager:
         self._preview_visible = False
         self._preview_debounce_time = 0.0
         self._preview_debounce_interval = 0.1  # 100ms debounce
-        self._streaming_status = ""  # "Streaming..." or "Finalizing..."
         self._preview_max_width = 400
         self._preview_max_height = 100
 
@@ -965,7 +1072,9 @@ class GUIManager:
         return Path(__file__).resolve().parent / "public" / "asset" / "logo.png"
 
     def _setup_window(self):
-        initial_scale = 1.0 if _resolve_visual_state(self._mode) == "record" else self._idle_scale
+        initial_scale = (
+            1.0 if _resolve_visual_state(self._mode) == "record" else self._idle_scale
+        )
         self._target_window_scale = initial_scale
         self._apply_window_scale(initial_scale, keep_center=False)
         screen = QGuiApplication.primaryScreen()
@@ -981,7 +1090,11 @@ class GUIManager:
         target_w = max(72, int(round(self._full_width * scale)))
         target_h = max(18, int(round(self._full_height * scale)))
 
-        if target_w == self._width and target_h == self._height and abs(scale - self._window_scale) < 1e-6:
+        if (
+            target_w == self._width
+            and target_h == self._height
+            and abs(scale - self._window_scale) < 1e-6
+        ):
             return
 
         old_x = old_y = old_w = old_h = 0
@@ -1011,7 +1124,11 @@ class GUIManager:
             next_scale = target
         else:
             # Use smoother easing for modern UI
-            if self._ui_style == "modern" and self._animations_enabled and not self._reduced_motion:
+            if (
+                self._ui_style == "modern"
+                and self._animations_enabled
+                and not self._reduced_motion
+            ):
                 # Elastic easing for natural motion
                 smoothing = 0.25
                 next_scale = current + (delta * smoothing)
@@ -1027,16 +1144,28 @@ class GUIManager:
         if hovered != self._window_hover:
             self._window_hover = hovered
             # Trigger hover animation for modern UI
-            if self._ui_style == "modern" and self._animations_enabled and not self._reduced_motion:
+            if (
+                self._ui_style == "modern"
+                and self._animations_enabled
+                and not self._reduced_motion
+            ):
                 if hovered:
                     # Scale up slightly on hover
                     visual_state = _resolve_visual_state(self._mode)
-                    base_scale = 1.0 if visual_state in {"record", "processing"} else self._idle_scale
+                    base_scale = (
+                        1.0
+                        if visual_state in {"record", "processing"}
+                        else self._idle_scale
+                    )
                     self._target_window_scale = base_scale * self._hover_scale
                 else:
                     # Return to normal scale
                     visual_state = _resolve_visual_state(self._mode)
-                    self._target_window_scale = 1.0 if visual_state in {"record", "processing"} else self._idle_scale
+                    self._target_window_scale = (
+                        1.0
+                        if visual_state in {"record", "processing"}
+                        else self._idle_scale
+                    )
             self._window.update()
 
     def _close_button_rect(self) -> QRectF:
@@ -1146,7 +1275,9 @@ class GUIManager:
                 target_w = max(1, int((logo.width / logo.height) * target_h))
                 logo = logo.resize((target_w, target_h), Image.Resampling.LANCZOS)
 
-                rgba = np.ascontiguousarray(np.array(logo.convert("RGBA"), dtype=np.uint8))
+                rgba = np.ascontiguousarray(
+                    np.array(logo.convert("RGBA"), dtype=np.uint8)
+                )
                 h, w, _ = rgba.shape
                 qimg = QImage(rgba.data, w, h, 4 * w, QImage.Format_RGBA8888).copy()
                 self._logo_image = QPixmap.fromImage(qimg)
@@ -1162,28 +1293,43 @@ class GUIManager:
 
     def _poll(self):
         self._refresh_logo_if_changed()
-        
+
         # Update animation phases for modern UI
-        if self._ui_style == "modern" and self._animations_enabled and not self._reduced_motion:
+        if (
+            self._ui_style == "modern"
+            and self._animations_enabled
+            and not self._reduced_motion
+        ):
             dt = 0.016  # ~60fps
             self._breathing_phase += dt
             self._pulse_phase += dt
-            
+
             visual_state = _resolve_visual_state(self._mode)
             if visual_state != self._last_state:
                 self._state_transition_progress = 0.0
                 self._last_state = visual_state
             else:
-                self._state_transition_progress = min(1.0, self._state_transition_progress + dt * 3.0)
-            
-            # Update glow intensity based on state
+                self._state_transition_progress = min(
+                    1.0, self._state_transition_progress + dt * 3.0
+                )
+
+            # Update glow intensity based on state and amplitude
             target_glow = 0.0
             if visual_state == "record":
-                target_glow = 0.4 + 0.2 * np.sin(self._pulse_phase * 4.0)
+                # Enhanced pulse glow - responds to audio level
+                base_pulse = 0.35 + 0.25 * np.sin(self._pulse_phase * 4.0)
+                # Add amplitude-based glow boost
+                amplitude_boost = self._level_env * 0.4
+                target_glow = base_pulse + amplitude_boost
             elif visual_state == "processing":
-                target_glow = 0.3
-            
-            self._glow_intensity_current += (target_glow - self._glow_intensity_current) * 0.15
+                # Processing state has subtle glow
+                base_glow = 0.25
+                amplitude_boost = self._level_env * 0.3
+                target_glow = base_glow + amplitude_boost
+
+            self._glow_intensity_current += (
+                target_glow - self._glow_intensity_current
+            ) * 0.18  # Slightly faster response
 
         try:
             while True:
@@ -1223,8 +1369,16 @@ class GUIManager:
             pass
 
         visual_state = _resolve_visual_state(self._mode)
-        is_recording = (visual_state == "record")
+        is_recording = visual_state == "record"
+        is_processing = visual_state == "processing"
 
+        # Update accent color based on state for enhanced visual feedback
+        if is_recording:
+            self._accent_color = self._recording_accent
+        elif is_processing:
+            self._accent_color = self._processing_accent
+
+        # Enhanced amplitude processing with fast attack, slow release
         try:
             while True:
                 amp = float(self._audio_queue.get_nowait())
@@ -1233,26 +1387,31 @@ class GUIManager:
                 amp = max(0.0, min(1.0, amp))
                 self._amplitudes.pop(0)
                 self._amplitudes.append(amp)
-                self._level_env = (self._level_env * self._motion["env_keep"]) + (amp * self._motion["env_new"])
+                # Fast attack for responsive visualization
+                self._level_env = (self._level_env * (1.0 - self._attack_speed)) + (
+                    amp * self._attack_speed
+                )
+                # Update peak hold with slow decay
+                if amp > self._peak_hold:
+                    self._peak_hold = amp
         except queue.Empty:
             pass
         except Exception:
             pass
-        
-        # Debug logging for waveform
-        if self._wave_debug and is_recording:
-            now = time.time()
-            if now - self._last_wave_debug_log > 0.5:
-                print(f"[waveform-debug] amplitudes={[f'{a:.2f}' for a in self._amplitudes[:3]]} heights={[f'{h:.2f}' for h in self._current_heights[:3]]} level_env={self._level_env:.3f}")
-                self._last_wave_debug_log = now
 
         if is_recording:
+            # Slow peak decay for visual appeal
+            self._peak_hold = max(self._peak_hold * self._peak_decay, self._level_env)
             self._level_peak = max(self._level_peak * 0.992, self._level_env, 0.09)
         else:
-            self._level_env *= 0.70
+            # Slow release for smooth transitions
+            self._level_env *= 1.0 - self._release_speed
+            self._peak_hold *= self._peak_decay
             self._level_peak = max(0.09, self._level_peak * 0.96)
 
-        base_scale = 1.0 if visual_state in {"record", "processing"} else self._idle_scale
+        base_scale = (
+            1.0 if visual_state in {"record", "processing"} else self._idle_scale
+        )
         if self._window_hover:
             base_scale *= self._hover_scale
         self._target_window_scale = base_scale
@@ -1260,20 +1419,27 @@ class GUIManager:
 
         half = max(1.0, (self._bar_count - 1) / 2.0)
         for i in range(self._bar_count):
-            if is_recording:
-                local = self._amplitudes[i] / max(0.10, self._level_peak)
+            if is_recording or is_processing:
+                # Use peak hold for more responsive visualization
+                peak_ref = max(0.10, self._peak_hold * 0.8 + self._level_peak * 0.2)
+                local = self._amplitudes[i] / peak_ref
                 local = _clamp(local, 0.0, 1.0)
-                center_bias = 1.14 - (abs(i - half) / half) * 0.26
-                strength = (local ** 0.58) * center_bias
-                target = _clamp(0.15 + (strength * 0.85), 0.0, 1.0)  # Increased floor from 0.06 to 0.15
+
+                # Enhanced center bias for more dynamic arch effect
+                center_bias = 1.20 - (abs(i - half) / half) * 0.32
+
+                # Apply amplitude-responsive strength
+                strength = (local**0.55) * center_bias
+                target = _clamp(0.06 + (strength * 0.92), 0.0, 1.0)
             else:
                 target = 0.0
 
             diff = target - self._current_heights[i]
+            # Fast rise, slow decay for smooth yet responsive animation
             if diff > 0:
-                self._current_heights[i] += diff * self._motion["rise"]
+                self._current_heights[i] += diff * 0.45  # Fast attack
             else:
-                decay = 0.44 if not is_recording else self._motion["decay"]
+                decay = 0.38 if not is_recording else 0.28  # Slow decay
                 self._current_heights[i] += diff * decay
             self._current_heights[i] = max(0.0, min(1.0, self._current_heights[i]))
 
@@ -1291,7 +1457,11 @@ class GUIManager:
             return
 
         rect = self._close_button_rect()
-        halo_rgba = self._theme["close_halo_active"] if (self._close_button_hover or self._close_button_pressed) else self._theme["close_halo"]
+        halo_rgba = (
+            self._theme["close_halo_active"]
+            if (self._close_button_hover or self._close_button_pressed)
+            else self._theme["close_halo"]
+        )
         halo = QColor(*halo_rgba)
         painter.setPen(Qt.NoPen)
         painter.setBrush(halo)
@@ -1331,14 +1501,25 @@ class GUIManager:
         )
         painter.setPen(Qt.NoPen)
 
-    def _paint_shell(self, painter, w: float, h: float, outer_radius: float, inner_radius: float):
+    def _paint_shell(
+        self, painter, w: float, h: float, outer_radius: float, inner_radius: float
+    ):
         visual_state = _resolve_visual_state(self._mode)
-        is_recording = (visual_state == "record")
+        is_recording = visual_state == "record"
         is_hovered = self._window_hover
-        
+
         # Use modern glassmorphism style if enabled
         if self._ui_style == "modern" and self._glassmorphism_enabled:
-            self._paint_modern_shell(painter, w, h, outer_radius, inner_radius, visual_state, is_recording, is_hovered)
+            self._paint_modern_shell(
+                painter,
+                w,
+                h,
+                outer_radius,
+                inner_radius,
+                visual_state,
+                is_recording,
+                is_hovered,
+            )
             return
 
         shadow_alpha = 44 + (12 if is_hovered else 0) + (10 if is_recording else 0)
@@ -1380,59 +1561,74 @@ class GUIManager:
         painter.setBrush(Qt.NoBrush)
         painter.drawRoundedRect(border_rect, inner_radius, inner_radius)
         painter.setPen(Qt.NoPen)
-    
-    def _paint_modern_shell(self, painter, w: float, h: float, outer_radius: float, inner_radius: float, 
-                           visual_state: str, is_recording: bool, is_hovered: bool):
+
+    def _paint_modern_shell(
+        self,
+        painter,
+        w: float,
+        h: float,
+        outer_radius: float,
+        inner_radius: float,
+        visual_state: str,
+        is_recording: bool,
+        is_hovered: bool,
+    ):
         """Paint modern glassmorphism shell with 2026 UI/UX design"""
-        
+
         # Enhanced shadow with depth
         shadow_blur = 32 if is_recording else 24
         shadow_alpha = 25 + (10 if is_hovered else 0) + (15 if is_recording else 0)
         for i in range(3):
             offset = (i + 1) * 2.0
-            shadow_rect = QRectF(offset, offset + 2, max(0.0, w - offset * 2), max(0.0, h - offset * 2))
+            shadow_rect = QRectF(
+                offset, offset + 2, max(0.0, w - offset * 2), max(0.0, h - offset * 2)
+            )
             alpha = int(shadow_alpha / (i + 1))
             painter.setPen(Qt.NoPen)
             painter.setBrush(QColor(0, 0, 0, alpha))
             painter.drawRoundedRect(shadow_rect, outer_radius, outer_radius)
-        
+
         # Glassmorphic background with translucency
         glass_alpha = 30 if is_recording else 25
         if is_hovered:
             glass_alpha += 5
-        
+
         shell_rect = QRectF(1.0, 1.0, max(0.0, w - 2.0), max(0.0, h - 2.0))
-        
+
         # Background fill with slight tint based on state
         if is_recording:
             bg_color = QColor(255, 255, 255, glass_alpha)
         else:
             bg_color = QColor(255, 255, 255, glass_alpha)
-        
+
         painter.setPen(Qt.NoPen)
         painter.setBrush(bg_color)
         painter.drawRoundedRect(shell_rect, inner_radius, inner_radius)
-        
+
         # Outer glow effect for active states
         if is_recording and self._glow_intensity_current > 0.01:
             accent = self._accent_color
             glow_color = QColor(*accent["glow"])
             glow_alpha = int(self._glow_intensity_current * 255)
             glow_color.setAlpha(glow_alpha)
-            
+
             for i in range(4):
                 glow_offset = (i + 1) * 4.0
                 glow_rect = QRectF(
                     1.0 - glow_offset,
                     1.0 - glow_offset,
                     max(0.0, w - 2.0 + glow_offset * 2),
-                    max(0.0, h - 2.0 + glow_offset * 2)
+                    max(0.0, h - 2.0 + glow_offset * 2),
                 )
                 glow_alpha_layer = int(glow_alpha / (i + 1) * 0.6)
                 glow_color.setAlpha(glow_alpha_layer)
                 painter.setBrush(glow_color)
-                painter.drawRoundedRect(glow_rect, inner_radius + glow_offset / 2, inner_radius + glow_offset / 2)
-        
+                painter.drawRoundedRect(
+                    glow_rect,
+                    inner_radius + glow_offset / 2,
+                    inner_radius + glow_offset / 2,
+                )
+
         # Border with accent color for active states
         border_width = 1.5
         border_inset = border_width / 2.0 + 0.5
@@ -1442,7 +1638,7 @@ class GUIManager:
             max(0.0, w - border_inset * 2.0),
             max(0.0, h - border_inset * 2.0),
         )
-        
+
         border_pen = painter.pen()
         if is_recording:
             accent = self._accent_color
@@ -1454,7 +1650,7 @@ class GUIManager:
         else:
             border_alpha = 51 if not is_hovered else 76
             border_pen.setColor(QColor(255, 255, 255, border_alpha))
-        
+
         border_pen.setWidthF(border_width)
         painter.setPen(border_pen)
         painter.setBrush(Qt.NoBrush)
@@ -1470,7 +1666,7 @@ class GUIManager:
         visual_state = _resolve_visual_state(self._mode)
         if visual_state != "record":
             return
-        
+
         # Use modern waveform visualization if enabled
         if self._ui_style == "modern":
             self._paint_modern_waveform(painter, w, h, visual_state)
@@ -1495,7 +1691,9 @@ class GUIManager:
 
         painter.setPen(Qt.NoPen)
         painter.setBrush(QColor(255, 255, 255, 6))
-        painter.drawRoundedRect(badge_rect.adjusted(1.2, 1.2, -1.2, -1.2), icon_h / 2.2, icon_h / 2.2)
+        painter.drawRoundedRect(
+            badge_rect.adjusted(1.2, 1.2, -1.2, -1.2), icon_h / 2.2, icon_h / 2.2
+        )
         painter.setBrush(Qt.NoBrush)
 
         if self._wave_debug:
@@ -1503,12 +1701,16 @@ class GUIManager:
             debug_pen.setColor(QColor(100, 200, 255, 160))
             debug_pen.setWidthF(1.0)
             painter.setPen(debug_pen)
-            painter.drawRoundedRect(badge_rect.adjusted(0.6, 0.6, -0.6, -0.6), icon_h / 2.1, icon_h / 2.1)
+            painter.drawRoundedRect(
+                badge_rect.adjusted(0.6, 0.6, -0.6, -0.6), icon_h / 2.1, icon_h / 2.1
+            )
             painter.setPen(Qt.NoPen)
 
         heights_for_render = list(self._current_heights[: self._bar_count])
         if len(heights_for_render) < self._bar_count:
-            heights_for_render.extend([0.0] * (self._bar_count - len(heights_for_render)))
+            heights_for_render.extend(
+                [0.0] * (self._bar_count - len(heights_for_render))
+            )
         bar_count = 17
         center_idx = (bar_count - 1) / 2.0
         span_w = icon_w * 0.66
@@ -1526,11 +1728,13 @@ class GUIManager:
             left_idx = int(sample_pos)
             right_idx = min(self._bar_count - 1, left_idx + 1)
             blend = sample_pos - left_idx
-            level = (heights_for_render[left_idx] * (1.0 - blend)) + (heights_for_render[right_idx] * blend)
+            level = (heights_for_render[left_idx] * (1.0 - blend)) + (
+                heights_for_render[right_idx] * blend
+            )
 
             center_dist = abs(i - center_idx) / max(1.0, center_idx)
-            arch = 1.0 - (center_dist ** 1.15) * 0.27
-            strength = _clamp(base_floor + ((level ** 0.62) * 0.92), 0.0, 1.0)
+            arch = 1.0 - (center_dist**1.15) * 0.27
+            strength = _clamp(base_floor + ((level**0.62) * 0.92), 0.0, 1.0)
             bar_h = min_bar_h + ((max_bar_h - min_bar_h) * strength * arch)
             x = start_x + (i * step_x)
             bar_values.append((x, _clamp(bar_h, min_bar_h, max_bar_h)))
@@ -1568,75 +1772,82 @@ class GUIManager:
             self._last_wave_debug_log = now
 
         painter.setPen(Qt.NoPen)
-    
+
     def _paint_modern_waveform(self, painter, w: float, h: float, visual_state: str):
         """Paint modern smooth waveform visualization with gradient and glow"""
-        
+
         now = time.time()
         right_pad = 30.0 if self._show_close_button else 0.0
         draw_w = max(24.0, w - right_pad)
         mid_x = draw_w / 2.0
         mid_y = h / 2.0
-        
-        # Modern waveform parameters
-        bar_count = self._bar_count  # Use configured bar count for consistency
-        bar_spacing = 8.0
-        bar_width = 4.0
-        bar_radius = 2.0
-        min_bar_h = 4.0
-        max_bar_h = h * 0.6
-        
+
+        # Enhanced waveform parameters - 11 bars for richer visualization
+        bar_count = 11  # Increased from 7 for more dynamic visualization
+        bar_spacing = 6.0  # Slightly tighter spacing
+        bar_width = 3.5  # Slightly narrower bars
+        bar_radius = 1.8
+        min_bar_h = 3.0
+        max_bar_h = h * 0.65  # More height range for better amplitude response
+
         # Calculate total width and starting position
         total_width = (bar_count * bar_width) + ((bar_count - 1) * bar_spacing)
         start_x = mid_x - (total_width / 2.0)
-        
-        # Get current heights
-        heights_for_render = list(self._current_heights[:self._bar_count])
+
+        # Get current heights with peak hold for more responsive visualization
+        heights_for_render = list(self._current_heights[: self._bar_count])
         if len(heights_for_render) < self._bar_count:
-            heights_for_render.extend([0.0] * (self._bar_count - len(heights_for_render)))
-        
-        # Interpolate to bar_count
+            heights_for_render.extend(
+                [0.0] * (self._bar_count - len(heights_for_render))
+            )
+
+        # Interpolate to bar_count with enhanced amplitude responsiveness
         bar_values = []
         for i in range(bar_count):
             sample_pos = i * max(1, self._bar_count - 1) / max(1, bar_count - 1)
             left_idx = int(sample_pos)
             right_idx = min(self._bar_count - 1, left_idx + 1)
             blend = sample_pos - left_idx
-            level = (heights_for_render[left_idx] * (1.0 - blend)) + (heights_for_render[right_idx] * blend)
-            
-            # Apply center bias for elegant arch
+            level = (heights_for_render[left_idx] * (1.0 - blend)) + (
+                heights_for_render[right_idx] * blend
+            )
+
+            # Enhanced center bias for more dynamic arch effect
             center_idx = (bar_count - 1) / 2.0
             center_dist = abs(i - center_idx) / max(1.0, center_idx)
-            arch = 1.0 - (center_dist ** 1.2) * 0.3
-            
-            strength = _clamp(level ** 0.6, 0.0, 1.0)
+            arch = 1.0 - (center_dist**1.1) * 0.35  # More pronounced arch
+
+            # Apply amplitude-responsive strength with softer power curve
+            strength = _clamp(level**0.5, 0.0, 1.0)
             bar_h = min_bar_h + ((max_bar_h - min_bar_h) * strength * arch)
             x = start_x + (i * (bar_width + bar_spacing))
             bar_values.append((x, _clamp(bar_h, min_bar_h, max_bar_h)))
-        
+
         # Get accent color
         accent = self._accent_color
-        
-        # Draw glow effect
+
+        # Enhanced glow effect - more prominent and responsive to amplitude
         if self._glow_intensity_current > 0.01:
             glow_color = QColor(*accent["glow"])
-            glow_alpha = int(self._glow_intensity_current * 180)
+            glow_alpha = int(self._glow_intensity_current * 220)  # Increased intensity
             glow_color.setAlpha(glow_alpha)
             painter.setPen(Qt.NoPen)
             painter.setBrush(glow_color)
-            
+
             for x, bar_h in bar_values:
+                # Glow scales with bar height for more dynamic effect
+                glow_height_factor = 1.0 + (bar_h / max_bar_h) * 0.5
                 glow_rect = QRectF(
-                    float(x - bar_width * 0.5),
-                    float(mid_y - (bar_h / 2.0) - 2.0),
-                    float(bar_width * 2.0),
-                    float(bar_h + 4.0),
+                    float(x - bar_width * 0.6),
+                    float(mid_y - (bar_h / 2.0) - 2.5),
+                    float(bar_width * 2.2),
+                    float(bar_h * glow_height_factor + 5.0),
                 )
-                painter.drawRoundedRect(glow_rect, bar_radius + 1.0, bar_radius + 1.0)
-        
-        # Draw bars with gradient
+                painter.drawRoundedRect(glow_rect, bar_radius + 1.2, bar_radius + 1.2)
+
+        # Draw bars with enhanced gradient based on height
         painter.setPen(Qt.NoPen)
-        
+
         for x, bar_h in bar_values:
             bar_rect = QRectF(
                 float(x),
@@ -1644,13 +1855,16 @@ class GUIManager:
                 float(bar_width),
                 float(bar_h),
             )
-            
-            # Create gradient from light to dark
+
+            # Create gradient from light to dark - intensity based on bar height
             gradient = QLinearGradient(bar_rect.topLeft(), bar_rect.bottomLeft())
+            height_intensity = bar_h / max_bar_h if max_bar_h > 0 else 0
+
+            # Lighter colors for taller bars for more dynamic effect
             gradient.setColorAt(0.0, QColor(accent["light"]))
-            gradient.setColorAt(0.5, QColor(accent["primary"]))
+            gradient.setColorAt(0.5 - height_intensity * 0.2, QColor(accent["primary"]))
             gradient.setColorAt(1.0, QColor(accent["dark"]))
-            
+
             painter.setBrush(gradient)
             painter.drawRoundedRect(bar_rect, bar_radius, bar_radius)
 
@@ -1676,15 +1890,23 @@ class GUIManager:
 
     def update(self, text: str):
         self._queue.put(("update", text))
-    
+
     def show_success_feedback(self):
         """Show brief success animation (green flash + bounce)"""
-        if self._ui_style == "modern" and self._animations_enabled and not self._reduced_motion:
+        if (
+            self._ui_style == "modern"
+            and self._animations_enabled
+            and not self._reduced_motion
+        ):
             self._queue.put(("feedback", "success"))
-    
+
     def show_error_feedback(self):
         """Show brief error animation (red flash + shake)"""
-        if self._ui_style == "modern" and self._animations_enabled and not self._reduced_motion:
+        if (
+            self._ui_style == "modern"
+            and self._animations_enabled
+            and not self._reduced_motion
+        ):
             self._queue.put(("feedback", "error"))
 
     def update_amplitude(self, amp: float):
@@ -1703,7 +1925,7 @@ class GUIManager:
 
     def quit(self):
         self._app.quit()
-    
+
     def _show_feedback_animation(self, feedback_type: str):
         """Show brief visual feedback animation"""
         if feedback_type == "success":
@@ -1726,13 +1948,13 @@ class GUIManager:
                 QApplication.processEvents()
                 time.sleep(0.04)
             self._window.move(original_x, self._window.y())
-    
+
     # --- Preview Window Methods ---
-    
+
     def show_preview(self, text: str, status: str = ""):
         """
         Show preview text in overlay window.
-        
+
         Args:
             text: Preview text to display
             status: Status indicator (e.g., "Streaming...", "Finalizing...")
@@ -1741,125 +1963,501 @@ class GUIManager:
         # Debounce updates
         if now - self._preview_debounce_time < self._preview_debounce_interval:
             return
-        
+
         self._preview_debounce_time = now
         self._preview_text = text
-        self._streaming_status = status
-        
+
         if not self._preview_visible:
             self._preview_visible = True
             self._position_preview_window()
             self._preview_window.show()
         else:
             self._preview_window.update()
-    
+
     def hide_preview(self):
         """Hide the preview window"""
         if self._preview_visible:
             self._preview_visible = False
             self._preview_window.hide()
             self._preview_text = ""
-            self._streaming_status = ""
-    
+
     def update_preview(self, text: str, status: str = ""):
         """
         Update preview text with debouncing.
-        
+
         Args:
             text: New preview text
             status: Status indicator
         """
         self.show_preview(text, status)
-    
+
     def _position_preview_window(self):
         """Position preview window below the main floating window"""
         if not self._preview_visible:
             return
-        
+
         # Calculate preview size based on text
         from PySide6.QtGui import QFontMetrics, QFont
-        
+
         font = QFont("Sans Serif", 10)
         fm = QFontMetrics(font)
-        
+
         # Calculate text dimensions
-        text_width = min(fm.horizontalAdvance(self._preview_text), self._preview_max_width - 20)
+        text_width = min(
+            fm.horizontalAdvance(self._preview_text), self._preview_max_width - 20
+        )
         text_height = fm.height()
-        
+
         # Estimate lines needed
         lines = max(1, len(self._preview_text) // 40 + 1)
         preview_height = min(text_height * lines + 30, self._preview_max_height)
         preview_width = min(text_width + 20, self._preview_max_width)
-        
+
         self._preview_window.setFixedSize(int(preview_width), int(preview_height))
-        
+
         # Position below main window
         main_x = self._window.x()
         main_y = self._window.y()
         main_h = self._window.height()
-        
+
         preview_x = main_x + (self._width - preview_width) // 2
         preview_y = main_y + main_h + 5  # 5px gap
-        
+
         self._preview_window.move(int(preview_x), int(preview_y))
-    
+
     def _paint_preview(self, window):
         """Paint the preview window"""
         painter = QPainter(window)
         painter.setRenderHint(QPainter.Antialiasing, True)
-        
+
         w = float(window.width())
         h = float(window.height())
-        
+
         # Draw background with transparency
         bg_path = QPainterPath()
         radius = 6.0
         bg_path.addRoundedRect(QRectF(0, 0, w, h), radius, radius)
-        
+
         # Semi-transparent dark background
         painter.fillPath(bg_path, QColor(20, 20, 25, 200))
-        
+
         # Draw border
         border_pen = painter.pen()
         border_pen.setColor(QColor(100, 100, 120, 180))
         border_pen.setWidthF(1.0)
         painter.setPen(border_pen)
         painter.drawPath(bg_path)
-        
+
         # Draw text
         from PySide6.QtGui import QFont, QPen
-        
+
         font = QFont("Sans Serif", 10)
         font.setItalic(True)  # Italic to indicate draft
         painter.setFont(font)
-        
+
         # Text color - lighter to indicate draft
         text_pen = QPen(QColor(180, 180, 200, 230))
         painter.setPen(text_pen)
-        
+
         # Truncate text if needed
         display_text = self._preview_text
         if len(display_text) > 100:
             display_text = display_text[:97] + "..."
-        
+
         # Draw text with padding
         from PySide6.QtCore import Qt
+
         text_rect = QRectF(8, 5, w - 16, h - 10)
         painter.drawText(text_rect, Qt.TextWordWrap, display_text)
-        
-        # Draw status indicator if set
-        if self._streaming_status:
-            status_font = QFont("Sans Serif", 8)
-            status_font.setItalic(False)
-            painter.setFont(status_font)
-            status_pen = QPen(QColor(100, 200, 150, 200))
-            painter.setPen(status_pen)
-            painter.drawText(QRectF(8, h - 18, w - 16, 15), Qt.AlignLeft, self._streaming_status)
-        
+
         painter.end()
 
 
 def main():
+    def print_banner(hotkey: str):
+        banner = r"""
+ ____  _ _      _        ____  _ _       _ _   
+|  _ \(_) |    | |      |  _ \(_) |     | | |  
+| | | |_| | ___| |_ __ _| |_) || | ___  | | |_ 
+| | | | | |/ __| __/ _` |  ___/ | |/ _ \ | | __|
+| |_| | | | (__| || (_| | |   | | | (_) || | |_ 
+|____/|_|_|\___|\__\__,_|_|   |_|_|\___/ |_|\__|
+"""
+        print(banner)
+        print("DictaPilot")
+        print("Developer: Rehan")
+        print("License: MIT (see LICENSE file)")
+        print("")
+
+
+def _setup_dictation_pipeline(gui, recorder, processing_event, shutdown_event, config, dashboard=None):
+    """Setup hotkey listener and recording callbacks for the floating window.
+    
+    Args:
+        gui: GUIManager instance
+        recorder: Recorder instance
+        processing_event: threading.Event for processing state
+        shutdown_event: threading.Event for shutdown coordination
+        config: DictaPilotConfig instance
+        dashboard: Optional DictaPilotMainDashboard instance (if running with GUI)
+    
+    Returns:
+        hotkey_manager: HotkeyManager instance (or None if registration failed)
+    """
+    from smart_editor import is_transform_command, sync_state_to_output, TranscriptState
+    
+    transcript_state = TranscriptState()
+    
+    # Load config values
+    HOTKEY = config.hotkey
+    HOTKEY_BACKEND = config.hotkey_backend
+    SMART_EDIT = config.smart_edit
+    RESET_TRANSCRIPT_EACH_RECORDING = config.reset_transcript_each_recording
+    PASTE_POLICY = config.paste_policy
+    PASTE_MODE = config.paste_mode
+    PASTE_BACKEND = config.paste_backend
+    INSTANT_REFINE = getattr(config, 'instant_refine', True)
+    DICTATION_MODE = config.mode
+    SMART_MODE = config.smart_mode
+    
+    def _stop_active_recording():
+        if not recorder._running.is_set():
+            return
+        temp_path = None
+        try:
+            fd, temp_path = tempfile.mkstemp(suffix=".wav")
+            os.close(fd)
+            recorder.stop(temp_path)
+        except Exception:
+            try:
+                recorder._running.clear()
+            except Exception:
+                pass
+        finally:
+            if temp_path:
+                try:
+                    os.remove(temp_path)
+                except Exception:
+                    pass
+    
+    def _request_shutdown():
+        """Shutdown dictation pipeline but keep app running if dashboard exists"""
+        if shutdown_event.is_set():
+            return
+        shutdown_event.set()
+        try:
+            processing_event.clear()
+        except Exception:
+            pass
+        try:
+            _stop_active_recording()
+        except Exception:
+            pass
+        try:
+            if hotkey_manager is not None:
+                hotkey_manager.stop()
+        except Exception:
+            pass
+        
+        # Only quit app if no dashboard is running
+        if dashboard is None:
+            # Normal mode - quit entire application
+            try:
+                gui.quit()
+            except Exception:
+                pass
+        else:
+            # Dashboard mode - just close/hide floating window
+            try:
+                gui.close()
+            except Exception:
+                pass
+    
+    gui.set_close_callback(_request_shutdown)
+    
+    def _signal_handler(signum, frame):
+        print("\nReceived interrupt, shutting down...")
+        _request_shutdown()
+    
+    signal.signal(signal.SIGINT, _signal_handler)
+    try:
+        signal.signal(signal.SIGTERM, _signal_handler)
+    except Exception:
+        pass
+    
+    def on_press(e):
+        if shutdown_event.is_set():
+            return
+        if recorder._running.is_set():
+            return
+        if processing_event.is_set():
+            try:
+                gui.show(("processing", "Still processing previous recording..."))
+            except Exception:
+                pass
+            return
+        if SMART_EDIT and RESET_TRANSCRIPT_EACH_RECORDING:
+            with transcript_state.lock:
+                transcript_state.segments.clear()
+                transcript_state.output_text = ""
+        print("Start recording")
+        
+        try:
+            gui.show(("record", "Recording..."))
+        except Exception:
+            pass
+        recorder.last_error = None
+        recorder.start(amplitude_callback=gui.update_amplitude)
+        started = recorder._started_event.wait(timeout=1.0)
+        if not started:
+            msg = recorder.last_error or "Timeout opening audio input device"
+            gui.update(f"Recording error: {msg}")
+            time.sleep(1.5)
+            gui.close()
+            return
+    
+    def on_release(e):
+        if shutdown_event.is_set():
+            return
+        if not recorder._running.is_set():
+            return
+        print("Stop recording")
+        
+        try:
+            gui.hide_preview()
+            gui.update(("processing", "Processing audio..."))
+        except Exception:
+            pass
+        
+        try:
+            fd, path = tempfile.mkstemp(suffix=".wav")
+            os.close(fd)
+            audio_path = recorder.stop(path)
+        except Exception as ex:
+            print("Recording error:", ex, file=sys.stderr)
+            gui.update(f"Recording error: {ex}")
+            time.sleep(2)
+            gui.close()
+            return
+        
+        processing_event.set()
+        
+        def _process():
+            try:
+                if shutdown_event.is_set():
+                    return
+                
+                gui.update(("processing", "Processing audio..."))
+                text = transcribe_with_groq(audio_path)
+                
+                if not text:
+                    text = "(no transcription returned)"
+                print("Transcription:\n", text)
+                
+                prev_out = transcript_state.output_text
+                fast_out = text
+                fast_action = "append"
+                
+                if SMART_EDIT:
+                    prev_out, fast_out, fast_action = smart_update_state(
+                        transcript_state,
+                        text,
+                        mode="heuristic",
+                        allow_llm=False,
+                    )
+                print(f"Fast action: {fast_action}")
+                print("Fast transcript:\n", fast_out if fast_out else "(empty)")
+                
+                refined_out = fast_out
+                refined_action = fast_action
+                if (
+                    SMART_EDIT
+                    and INSTANT_REFINE
+                    and DICTATION_MODE != "speed"
+                    and not is_transform_command(text)
+                ):
+                    try:
+                        gui.update(("processing", "Refining..."))
+                    except Exception:
+                        pass
+                    llm_result = llm_refine(prev_out, text)
+                    if llm_result is not None:
+                        refined_out, refined_action = llm_result
+                        if refined_out != fast_out:
+                            with transcript_state.lock:
+                                current_out = transcript_state.output_text
+                            if current_out == fast_out:
+                                sync_state_to_output(
+                                    transcript_state, fast_out, refined_out
+                                )
+                
+                if PASTE_POLICY == "final_only":
+                    final_output = refined_out
+                    should_paste = (
+                        refined_action != "ignore"
+                        and refined_action != "clear"
+                        and final_output.strip()
+                    )
+                    
+                    if should_paste:
+                        try:
+                            import pyperclip
+                            pyperclip.copy(final_output)
+                        except Exception:
+                            gui.set_clipboard_text(final_output)
+                        
+                        paste_error = None
+                        try:
+                            selected_paste_mode = PASTE_MODE if SMART_EDIT else "delta"
+                            paste_text(
+                                prev_out,
+                                final_output,
+                                selected_paste_mode,
+                                backend=PASTE_BACKEND,
+                            )
+                        except Exception as ex:
+                            paste_error = ex
+                            try:
+                                paste_text(
+                                    "", final_output, "full", backend=PASTE_BACKEND
+                                )
+                                paste_error = None
+                            except Exception as ex2:
+                                paste_error = RuntimeError(
+                                    f"{ex}; fallback full paste failed: {ex2}"
+                                )
+                        
+                        if paste_error is not None:
+                            print(f"Paste error: {paste_error}", file=sys.stderr)
+                            try:
+                                gui.update(
+                                    "Paste failed. Try normal user mode and PASTE_BACKEND=x11/xdotool."
+                                )
+                            except Exception:
+                                pass
+                    else:
+                        print(
+                            f"Action '{refined_action}' detected - skipping external paste"
+                        )
+                        try:
+                            gui.show(("done", "Command applied"))
+                        except Exception:
+                            pass
+                elif PASTE_POLICY == "live_preview":
+                    try:
+                        import pyperclip
+                        pyperclip.copy(fast_out)
+                    except Exception:
+                        gui.set_clipboard_text(fast_out)
+                    
+                    paste_error = None
+                    try:
+                        selected_paste_mode = PASTE_MODE if SMART_EDIT else "delta"
+                        paste_text(
+                            prev_out,
+                            fast_out,
+                            selected_paste_mode,
+                            backend=PASTE_BACKEND,
+                        )
+                    except Exception as ex:
+                        paste_error = ex
+                        try:
+                            paste_text("", fast_out, "full", backend=PASTE_BACKEND)
+                            paste_error = None
+                        except Exception as ex2:
+                            paste_error = RuntimeError(
+                                f"{ex}; fallback full paste failed: {ex2}"
+                            )
+                    
+                    if paste_error is not None:
+                        print(f"Paste error: {paste_error}", file=sys.stderr)
+                        try:
+                            gui.update(
+                                "Paste failed. Try normal user mode and PASTE_BACKEND=x11/xdotool."
+                            )
+                        except Exception:
+                            pass
+                
+                try:
+                    add_transcription(
+                        text,
+                        refined_out,
+                        refined_action,
+                        cleanup_applied=refined_out != text,
+                        correction_source="heuristic" if SMART_EDIT else "none",
+                        ambiguity_flag=False,
+                    )
+                    print("Transcription saved to storage")
+                except Exception as storage_ex:
+                    missing_path = getattr(storage_ex, "filename", None)
+                    if missing_path:
+                        print(
+                            f"Warning: failed to save transcription: {storage_ex} (missing: {missing_path})",
+                            file=sys.stderr,
+                        )
+                    else:
+                        print(
+                            f"Warning: failed to save transcription: {storage_ex}",
+                            file=sys.stderr,
+                        )
+                
+                try:
+                    output_for_popup = (
+                        refined_out if refined_out else "(empty transcript)"
+                    )
+                    snippet = (
+                        output_for_popup
+                        if len(output_for_popup) <= 300
+                        else output_for_popup[:300] + "..."
+                    )
+                    gui.show(("done", snippet))
+                except Exception:
+                    pass
+                
+                time.sleep(1.5)
+                try:
+                    gui.show(("idle", "Ready"))
+                except Exception:
+                    pass
+            
+            except Exception as ex:
+                missing_path = getattr(ex, "filename", None)
+                if missing_path:
+                    gui.update(f"Transcription error: {ex} (missing: {missing_path})")
+                else:
+                    gui.update(f"Transcription error: {ex}")
+                print("Transcription error:", ex, file=sys.stderr)
+                print(traceback.format_exc(), file=sys.stderr)
+            finally:
+                processing_event.clear()
+                try:
+                    os.remove(audio_path)
+                except Exception:
+                    pass
+        
+        t = threading.Thread(target=_process, daemon=True)
+        t.start()
+    
+    hotkey_manager = HotkeyManager(HOTKEY, on_press, on_release, backend=HOTKEY_BACKEND)
+    try:
+        active_backend = hotkey_manager.start()
+        print(f"Hotkey listener active: {active_backend}")
+    except Exception as ex:
+        print(f"Failed to register hotkey '{HOTKEY}': {ex}", file=sys.stderr)
+        return None
+    
+    return hotkey_manager
+
+
+def main():
+    """Main entry point for normal dictation mode (floating window only)."""
+    if not sys.stdout.isatty():
+        try:
+            sys.stdout = open(os.devnull, "w")
+            sys.stderr = open(os.devnull, "w")
+        except Exception:
+            pass
+    
     def print_banner(hotkey: str):
         banner = r"""
  ____  _ _      _        ____  _ _       _ _   
@@ -1882,9 +2480,17 @@ def main():
             print("Running on Wayland - using pynput backend for hotkeys")
             # Check Wayland dependencies
             try:
-                from wayland_backend import get_wayland_dependencies_status, print_wayland_setup_instructions
+                from wayland_backend import (
+                    get_wayland_dependencies_status,
+                    print_wayland_setup_instructions,
+                )
+
                 deps = get_wayland_dependencies_status()
-                missing = [k for k, v in deps.items() if not v and k in ('wl_clipboard', 'pynput')]
+                missing = [
+                    k
+                    for k, v in deps.items()
+                    if not v and k in ("wl_clipboard", "pynput")
+                ]
                 if missing:
                     print("")
                     print("Warning: Some Wayland dependencies are missing:")
@@ -1898,7 +2504,7 @@ def main():
         else:
             print("Display server unknown - using fallback backends")
         print("")
-        
+
         print(f"Hold '{hotkey}' to record; release to send audio for transcription.")
         print(
             f"Smart dictation: {'on' if SMART_EDIT else 'off'} "
@@ -1910,12 +2516,10 @@ def main():
         print(f"Transcription model: {GROQ_WHISPER_MODEL}")
         print(f"Hotkey backend preference: {HOTKEY_BACKEND}")
         print(f"Dictation mode: {DICTATION_MODE} (cleanup={CLEANUP_LEVEL})")
-        print(f"Audio: {SR}Hz, channels={CHANNELS}, trim_silence={'on' if TRIM_SILENCE else 'off'}")
+        print(
+            f"Audio: {SR}Hz, channels={CHANNELS}, trim_silence={'on' if TRIM_SILENCE else 'off'}"
+        )
         print(f"Instant refine: {'on' if INSTANT_REFINE else 'off'}")
-        print(f"Streaming transcription: {'on' if STREAMING_ENABLED else 'off'}")
-        if STREAMING_ENABLED:
-            print(f"  Chunk duration: {STREAMING_CHUNK_DURATION}s, overlap: {STREAMING_CHUNK_OVERLAP}s")
-            print(f"  Final pass: {'on' if STREAMING_FINAL_PASS else 'off'}")
         if SMART_EDIT and RESET_TRANSCRIPT_EACH_RECORDING:
             print("Transcript reset mode: per recording")
         elif SMART_EDIT:
@@ -1924,7 +2528,9 @@ def main():
         try:
             storage_info = get_storage_info()
             print(f"Transcription storage: {storage_info['storage_path']}")
-            print(f"Total transcriptions: {storage_info['statistics']['total_transcriptions']}")
+            print(
+                f"Total transcriptions: {storage_info['statistics']['total_transcriptions']}"
+            )
         except Exception:
             pass
         print("")
@@ -1933,507 +2539,19 @@ def main():
     recorder = Recorder()
     processing_event = threading.Event()
     shutdown_event = threading.Event()
-    hotkey_manager = None
 
     try:
         gui = GUIManager()
     except Exception as ex:
         print(f"Failed to initialize GUI: {ex}", file=sys.stderr)
         return
-    transcript_state = TranscriptState()
     
-    # Initialize streaming transcription components if enabled
-    streaming_transcriber = None
-    chunked_buffer = None
-    partial_text = ""
-    streaming_lock = threading.Lock()
+    # Load config and setup dictation pipeline
+    from config import load_config
+    config = load_config()
     
-    if STREAMING_ENABLED:
-        try:
-            streaming_transcriber = DualPassTranscriber(
-                StreamingTranscriber(model=GROQ_WHISPER_MODEL),
-                final_pass_enabled=STREAMING_FINAL_PASS
-            )
-            chunked_buffer = ChunkedAudioBuffer(
-                sample_rate=SR,
-                channels=CHANNELS,
-                chunk_duration=STREAMING_CHUNK_DURATION,
-                chunk_overlap=STREAMING_CHUNK_OVERLAP,
-                min_chunks=STREAMING_MIN_CHUNKS
-            )
-            print("Streaming transcription initialized")
-        except Exception as ex:
-            print(f"Warning: Failed to initialize streaming: {ex}", file=sys.stderr)
-            streaming_transcriber = None
-            chunked_buffer = None
-
-    def _stop_active_recording():
-        if not recorder._running.is_set():
-            return
-        temp_path = None
-        try:
-            fd, temp_path = tempfile.mkstemp(suffix=".wav")
-            os.close(fd)
-            recorder.stop(temp_path)
-        except Exception:
-            try:
-                recorder._running.clear()
-            except Exception:
-                pass
-        finally:
-            if temp_path:
-                try:
-                    os.remove(temp_path)
-                except Exception:
-                    pass
-
-    def _request_shutdown():
-        if shutdown_event.is_set():
-            return
-        shutdown_event.set()
-        try:
-            processing_event.clear()
-        except Exception:
-            pass
-        try:
-            _stop_active_recording()
-        except Exception:
-            pass
-        try:
-            if hotkey_manager is not None:
-                hotkey_manager.stop()
-        except Exception:
-            pass
-        try:
-            gui.quit()
-        except Exception:
-            pass
-
-    gui.set_close_callback(_request_shutdown)
-
-    def _signal_handler(signum, frame):
-        print("\nReceived interrupt, shutting down...")
-        _request_shutdown()
-
-    signal.signal(signal.SIGINT, _signal_handler)
-    try:
-        signal.signal(signal.SIGTERM, _signal_handler)
-    except Exception:
-        pass
-
-    def on_press(e):
-        # start only if not already recording
-        if shutdown_event.is_set():
-            return
-        if recorder._running.is_set():
-            return
-        # avoid overlapping transcription workers that can mix state across recordings
-        if processing_event.is_set():
-            try:
-                gui.show(("processing", "Still processing previous recording..."))
-            except Exception:
-                pass
-            return
-        if SMART_EDIT and RESET_TRANSCRIPT_EACH_RECORDING:
-            with transcript_state.lock:
-                transcript_state.segments.clear()
-                transcript_state.output_text = ""
-        print("Start recording")
-        
-        # Reset streaming state
-        nonlocal partial_text
-        partial_text = ""
-        
-        # Start streaming transcription if enabled
-        streaming_active = False
-        if streaming_transcriber and chunked_buffer:
-            try:
-                # Check if streaming is healthy
-                health = streaming_transcriber.streaming.get_health()
-                if health.fallback_mode:
-                    print("Streaming in fallback mode - using batch transcription", file=sys.stderr)
-                else:
-                    chunked_buffer.start_recording()
-                    
-                    def on_partial_result(result: StreamingResult):
-                        nonlocal partial_text
-                        with streaming_lock:
-                            partial_text = result.text
-                        # Update GUI preview
-                        try:
-                            gui.update_preview(result.text, "Streaming...")
-                        except Exception:
-                            pass
-                    
-                    def on_streaming_error(error: str):
-                        nonlocal streaming_active
-                        print(f"Streaming error: {error}", file=sys.stderr)
-                        # Check if we should fall back
-                        health = streaming_transcriber.streaming.get_health()
-                        if health.fallback_mode:
-                            streaming_active = False
-                            try:
-                                gui.update_preview("", "Streaming paused - using batch mode")
-                            except Exception:
-                                pass
-                    
-                    streaming_transcriber.set_partial_callback(on_partial_result)
-                    streaming_transcriber.start()
-                    streaming_active = True
-            except Exception as ex:
-                print(f"Failed to start streaming: {ex}", file=sys.stderr)
-                streaming_active = False
-        
-        try:
-            gui.show(("record", "Recording..."))
-        except Exception:
-            pass
-        recorder.last_error = None
-        recorder.start(amplitude_callback=gui.update_amplitude)
-        # wait for the input stream to open or error
-        started = recorder._started_event.wait(timeout=1.0)
-        if not started:
-            # if there was an error, show it; otherwise show a timeout message
-            msg = recorder.last_error or "Timeout opening audio input device"
-            gui.update(f"Recording error: {msg}")
-            time.sleep(1.5)
-            gui.close()
-            return
-
-    def on_release(e):
-        # ignore if we never started recording
-        if shutdown_event.is_set():
-            return
-        if not recorder._running.is_set():
-            return
-        print("Stop recording")
-        
-        # Hide preview and show processing state
-        try:
-            gui.hide_preview()
-            gui.update(("processing", "Processing audio..."))
-        except Exception:
-            pass
-        
-        # Finalize streaming and get full audio
-        full_audio = None
-        if chunked_buffer:
-            full_audio, remaining_chunks = chunked_buffer.finalize()
-        
-        # Stop streaming transcriber
-        if streaming_transcriber:
-            streaming_transcriber.stop()
-        
-        try:
-            # save to temp file
-            fd, path = tempfile.mkstemp(suffix=".wav")
-            os.close(fd)
-            audio_path = recorder.stop(path)
-        except Exception as ex:
-            print("Recording error:", ex, file=sys.stderr)
-            gui.update(f"Recording error: {ex}")
-            time.sleep(2)
-            gui.close()
-            return
-
-        processing_event.set()
-
-        def _process():
-            try:
-                if shutdown_event.is_set():
-                    return
-                
-                # Use streaming result if available, otherwise fall back to batch
-                if streaming_transcriber and full_audio is not None and len(full_audio) > 0:
-                    gui.update(("processing", "Finalizing..."))
-                    
-                    # Run final pass on complete audio
-                    text = streaming_transcriber.finalize(full_audio)
-                    
-                    # If no final pass or it failed, use partial text
-                    if not text:
-                        with streaming_lock:
-                            text = partial_text
-                    
-                    if not text:
-                        text = "(no transcription returned)"
-                else:
-                    gui.update(("processing", "Processing audio..."))
-                    text = transcribe_with_groq(audio_path)
-                
-                if not text:
-                    text = "(no transcription returned)"
-                print("Transcription:\n", text)
-
-                prev_out = transcript_state.output_text
-                fast_out = text
-                fast_action = "append"
-
-                if SMART_EDIT:
-                    prev_out, fast_out, fast_action = smart_update_state(
-                        transcript_state,
-                        text,
-                        mode="heuristic",
-                        allow_llm=False,
-                    )
-                    print(f"Fast action: {fast_action}")
-                    print("Fast transcript:\n", fast_out if fast_out else "(empty)")
-
-                # Check mode - if in agent mode, format differently
-                # Support both manual mode and auto-detection
-                mode = os.getenv("MODE", "dictation").strip().lower()
-                
-                # Auto-detect agent mode if enabled
-                if AGENT_AUTO_DETECT and mode != "agent":
-                    from agent_formatter import ModeDetector
-                    detector = ModeDetector()
-                    detected_mode = detector.detect_mode(text)
-                    if detected_mode == "agent":
-                        mode = "agent"
-                        print("Auto-detected agent mode from speech content")
-
-                # Determine final output after all processing
-                if mode == "agent":
-                    # Format for agent consumption
-                    from agent_formatter import AgentFormatter
-                    formatter = AgentFormatter()
-                    output_format = AGENT_OUTPUT_FORMAT if AGENT_OUTPUT_FORMAT in ("structured", "markdown", "plain") else "structured"
-                    refined_out = formatter.format_for_agent(fast_out, mode=output_format)
-                    
-                    # Get structured info for metadata
-                    structured_info = formatter.extract_structured_info(text)
-
-                    # Copy to clipboard as formatted agent prompt
-                    try:
-                        import pyperclip
-                        pyperclip.copy(refined_out)
-                    except Exception:
-                        gui.set_clipboard_text(refined_out)
-
-                    # Send to IDE integration if enabled
-                    if AGENT_IDE_INTEGRATION:
-                        try:
-                            from ide_integration import get_integration_manager
-                            manager = get_integration_manager(AGENT_WEBHOOK_URL)
-                            manager.enable(AGENT_WEBHOOK_URL)
-                            
-                            metadata = {
-                                'priority': structured_info.priority,
-                                'complexity': structured_info.complexity,
-                                'language': structured_info.language,
-                                'frameworks': structured_info.frameworks,
-                                'files': structured_info.files_locations,
-                            }
-                            
-                            sent = manager.send_agent_task(refined_out, metadata)
-                            if sent:
-                                print("Sent task to IDE integration")
-                        except Exception as e:
-                            print(f"IDE integration error: {e}", file=sys.stderr)
-                    
-                    # Optionally post to webhook if configured (and IDE integration not used)
-                    elif AGENT_WEBHOOK_URL:
-                        import threading
-                        def send_webhook():
-                            try:
-                                import urllib.request
-                                import urllib.parse
-                                import json
-
-                                data = {
-                                    'prompt': refined_out,
-                                    'timestamp': time.time(),
-                                    'source': 'dictapilot',
-                                    'metadata': {
-                                        'priority': structured_info.priority,
-                                        'complexity': structured_info.complexity,
-                                        'language': structured_info.language,
-                                        'frameworks': structured_info.frameworks,
-                                        'files': structured_info.files_locations,
-                                    }
-                                }
-
-                                req = urllib.request.Request(
-                                    AGENT_WEBHOOK_URL,
-                                    data=json.dumps(data).encode('utf-8'),
-                                    headers={'Content-Type': 'application/json'}
-                                )
-
-                                with urllib.request.urlopen(req, timeout=10) as response:
-                                    if response.status == 200:
-                                        print("Successfully sent to agent webhook")
-                                    else:
-                                        print(f"Webhook responded with status {response.status}")
-                            except Exception as e:
-                                print(f"Failed to send to webhook: {e}", file=sys.stderr)
-
-                        # Send webhook in background thread
-                        threading.Thread(target=send_webhook, daemon=True).start()
-
-                    # For agent mode, use the formatted output
-                    refined_action = "append"
-                else:
-                    # Original dictation mode behavior
-                    refined_out = fast_out
-                    refined_action = fast_action
-                    if SMART_EDIT and INSTANT_REFINE and DICTATION_MODE != "speed" and not is_transform_command(text):
-                        try:
-                            gui.update(("processing", "Refining..."))
-                        except Exception:
-                            pass
-                        llm_result = llm_refine(prev_out, text)
-                        if llm_result is not None:
-                            refined_out, refined_action = llm_result
-                            if refined_out != fast_out:
-                                with transcript_state.lock:
-                                    current_out = transcript_state.output_text
-                                if current_out == fast_out:
-                                    sync_state_to_output(transcript_state, fast_out, refined_out)
-
-                # Only paste the final refined text according to the paste policy
-                if PASTE_POLICY == "final_only":
-                    # For "final_only" policy, only paste the final refined output
-                    final_output = refined_out
-
-                    # Only paste if the action is not ignore/clear and output is not empty
-                    should_paste = (refined_action != "ignore" and
-                                  refined_action != "clear" and
-                                  final_output.strip())
-
-                    if should_paste:
-                        # copy to clipboard (prefer pyperclip, fallback to GUI clipboard)
-                        try:
-                            import pyperclip
-                            pyperclip.copy(final_output)
-                        except Exception:
-                            gui.set_clipboard_text(final_output)
-
-                        # Keep floating window visible to avoid hide/show flicker glitch.
-                        paste_error = None
-                        try:
-                            selected_paste_mode = PASTE_MODE if SMART_EDIT else "delta"
-                            paste_text(prev_out, final_output, selected_paste_mode, backend=PASTE_BACKEND)
-                        except Exception as ex:
-                            paste_error = ex
-                            try:
-                                # fallback: force full replace for better compatibility
-                                paste_text("", final_output, "full", backend=PASTE_BACKEND)
-                                paste_error = None
-                            except Exception as ex2:
-                                paste_error = RuntimeError(f"{ex}; fallback full paste failed: {ex2}")
-
-                        if paste_error is not None:
-                            print(f"Paste error: {paste_error}", file=sys.stderr)
-                            try:
-                                gui.update("Paste failed. Try normal user mode and PASTE_BACKEND=x11/xdotool.")
-                            except Exception:
-                                pass
-                    else:
-                        # For ignore/clear actions, still update the GUI but don't paste to external apps
-                        print(f"Action '{refined_action}' detected - skipping external paste")
-                        try:
-                            gui.show(("done", "Command applied"))
-                        except Exception:
-                            pass
-                elif PASTE_POLICY == "live_preview":
-                    # Original behavior for backward compatibility
-                    # copy to clipboard (prefer pyperclip, fallback to GUI clipboard)
-                    try:
-                        import pyperclip
-                        pyperclip.copy(fast_out)
-                    except Exception:
-                        gui.set_clipboard_text(fast_out)
-
-                    # Keep floating window visible to avoid hide/show flicker glitch.
-                    paste_error = None
-                    try:
-                        selected_paste_mode = PASTE_MODE if SMART_EDIT else "delta"
-                        paste_text(prev_out, fast_out, selected_paste_mode, backend=PASTE_BACKEND)
-                    except Exception as ex:
-                        paste_error = ex
-                        try:
-                            # fallback: force full replace for better compatibility
-                            paste_text("", fast_out, "full", backend=PASTE_BACKEND)
-                            paste_error = None
-                        except Exception as ex2:
-                            paste_error = RuntimeError(f"{ex}; fallback full paste failed: {ex2}")
-
-                    if paste_error is not None:
-                        print(f"Paste error: {paste_error}", file=sys.stderr)
-                        try:
-                            gui.update("Paste failed. Try normal user mode and PASTE_BACKEND=x11/xdotool.")
-                        except Exception:
-                            pass
-
-                # Save transcription to storage (final output).
-                # Storage failures should not break the dictation pipeline.
-                try:
-                    add_transcription(
-                        text,
-                        refined_out,
-                        refined_action,
-                        cleanup_applied=refined_out != text,
-                        correction_source="heuristic" if SMART_EDIT else "none",
-                        ambiguity_flag=False,
-                    )
-                    print("Transcription saved to storage")
-                except Exception as storage_ex:
-                    missing_path = getattr(storage_ex, "filename", None)
-                    if missing_path:
-                        print(
-                            f"Warning: failed to save transcription: {storage_ex} (missing: {missing_path})",
-                            file=sys.stderr,
-                        )
-                    else:
-                        print(f"Warning: failed to save transcription: {storage_ex}", file=sys.stderr)
-
-                # show done text briefly after paste
-                try:
-                    output_for_popup = refined_out if refined_out else "(empty transcript)"
-                    snippet = output_for_popup if len(output_for_popup) <= 300 else output_for_popup[:300] + "..."
-                    gui.show(("done", snippet))
-                except Exception:
-                    pass
-                
-                # Reset streaming health for next recording (recovery)
-                if streaming_transcriber:
-                    try:
-                        streaming_transcriber.reset()
-                    except Exception:
-                        pass
-
-                # keep the done window visible briefly then return to idle
-                time.sleep(1.5)
-                try:
-                    gui.show(("idle", "Ready"))
-                except Exception:
-                    pass
-
-            except Exception as ex:
-                missing_path = getattr(ex, "filename", None)
-                if missing_path:
-                    gui.update(f"Transcription error: {ex} (missing: {missing_path})")
-                else:
-                    gui.update(f"Transcription error: {ex}")
-                print("Transcription error:", ex, file=sys.stderr)
-                print(traceback.format_exc(), file=sys.stderr)
-            finally:
-                processing_event.clear()
-                try:
-                    os.remove(audio_path)
-                except Exception:
-                    pass
-
-        t = threading.Thread(target=_process, daemon=True)
-        t.start()
-
-    # register hotkey handlers
-    hotkey_manager = HotkeyManager(HOTKEY, on_press, on_release, backend=HOTKEY_BACKEND)
-    try:
-        active_backend = hotkey_manager.start()
-        print(f"Hotkey listener active: {active_backend}")
-    except Exception as ex:
-        print(f"Failed to register hotkey '{HOTKEY}': {ex}", file=sys.stderr)
+    hotkey_manager = _setup_dictation_pipeline(gui, recorder, processing_event, shutdown_event, config)
+    if hotkey_manager is None:
         return
 
     print("Ready. Press and hold the hotkey to record.")
@@ -2441,43 +2559,81 @@ def main():
         gui.run()
     except KeyboardInterrupt:
         print("\nKeyboard interrupt received, exiting...")
-        _request_shutdown()
-    finally:
-        _request_shutdown()
 
 
 if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser(description="DictaPilot - Press-and-hold dictation")
+    parser = argparse.ArgumentParser(
+        description="DictaPilot - Press-and-hold dictation"
+    )
     parser.add_argument("--tray", action="store_true", help="Run with system tray")
     parser.add_argument("--gui", action="store_true", help="Launch settings dashboard")
-    parser.add_argument("--legacy-ui", action="store_true", help="Launch legacy settings window")
-    parser.add_argument("--export", type=str, metavar="FILE", help="Export all transcriptions to a text file")
-    parser.add_argument("--list", action="store_true", help="List recent transcriptions")
-    parser.add_argument("--stats", action="store_true", help="Show transcription statistics")
-    parser.add_argument("--search", type=str, metavar="QUERY", help="Search transcriptions")
-    parser.add_argument("--wayland-deps", action="store_true", help="Show Wayland dependency installation instructions")
+    parser.add_argument(
+        "--legacy-ui", action="store_true", help="Launch legacy settings window"
+    )
+    parser.add_argument(
+        "--export",
+        type=str,
+        metavar="FILE",
+        help="Export all transcriptions to a text file",
+    )
+    parser.add_argument(
+        "--list", action="store_true", help="List recent transcriptions"
+    )
+    parser.add_argument(
+        "--stats", action="store_true", help="Show transcription statistics"
+    )
+    parser.add_argument(
+        "--search", type=str, metavar="QUERY", help="Search transcriptions"
+    )
+    parser.add_argument(
+        "--wayland-deps",
+        action="store_true",
+        help="Show Wayland dependency installation instructions",
+    )
     args = parser.parse_args()
-    
+
     # Check config for UI preference
     from config import load_config
+
     config = load_config()
-    use_legacy = config.use_legacy_ui if hasattr(config, 'use_legacy_ui') else False
-    
+    use_legacy = config.use_legacy_ui if hasattr(config, "use_legacy_ui") else False
+
     if args.gui or is_frozen():
         # When running as packaged exe, show settings dashboard by default
         # This ensures users see the main interface, not just the floating overlay
         try:
             if args.legacy_ui or use_legacy:
                 from settings_dashboard import run_dashboard
+
                 sys.exit(run_dashboard() or 0)
             else:
                 from dashboard_main import DictaPilotMainDashboard
                 from PySide6.QtWidgets import QApplication
+
                 app = QApplication(sys.argv)
+                app.setQuitOnLastWindowClosed(False)  # Prevent auto-quit when windows close
+                
+                # Create floating window alongside dashboard
+                try:
+                    gui = GUIManager()
+                except Exception as ex:
+                    print(f"Warning: Failed to initialize floating window: {ex}", file=sys.stderr)
+                    gui = None
+                
                 dashboard = DictaPilotMainDashboard(config)
                 dashboard.show()
+                
+                # Start hotkey listener so floating window responds to dictation
+                if gui is not None:
+                    recorder = Recorder()
+                    processing_event = threading.Event()
+                    shutdown_event = threading.Event()
+                    hotkey_manager = _setup_dictation_pipeline(gui, recorder, processing_event, shutdown_event, config, dashboard)
+                    if hotkey_manager is None:
+                        print("Warning: Hotkey registration failed, floating window will not respond to hotkey", file=sys.stderr)
+                
                 sys.exit(app.exec())
         except ImportError as e:
             print(f"Error: Could not launch settings dashboard: {e}")
@@ -2487,6 +2643,7 @@ if __name__ == "__main__":
     if args.wayland_deps:
         try:
             from wayland_backend import print_wayland_setup_instructions
+
             print_wayland_setup_instructions()
         except ImportError:
             print("Wayland backend module not available")
@@ -2494,6 +2651,7 @@ if __name__ == "__main__":
 
     if args.export:
         from transcription_store import export_all_to_text
+
         path = Path(args.export)
         content = export_all_to_text(path, include_metadata=True)
         print(f"Exported to: {path}")
@@ -2502,6 +2660,7 @@ if __name__ == "__main__":
 
     if args.list:
         from transcription_store import get_transcriptions
+
         entries = get_transcriptions(20)
         print("Recent Transcriptions:")
         print("-" * 60)
@@ -2513,11 +2672,12 @@ if __name__ == "__main__":
 
     if args.stats:
         from transcription_store import get_storage_info
+
         info = get_storage_info()
         print("Transcription Storage Statistics")
         print("-" * 40)
         print(f"Storage location: {info['storage_path']}")
-        stats = info['statistics']
+        stats = info["statistics"]
         print(f"Total transcriptions: {stats['total_transcriptions']}")
         print(f"Total words: {stats['total_words']}")
         print(f"Total characters: {stats['total_characters']}")
@@ -2526,6 +2686,7 @@ if __name__ == "__main__":
 
     if args.search:
         from transcription_store import search_transcriptions
+
         results = search_transcriptions(args.search)
         print(f"Search results for '{args.search}':")
         print("-" * 60)

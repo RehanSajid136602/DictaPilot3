@@ -6,6 +6,13 @@
 
 set -e
 
+# Get the project root directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+
+# Change to project root for git describe and fpm operations
+cd "$PROJECT_ROOT"
+
 echo "=== DictaPilot .deb Build ==="
 
 # Check for fpm
@@ -16,14 +23,14 @@ if ! command -v fpm &> /dev/null; then
     exit 1
 fi
 
-# Check if binary exists
-if [ ! -f "dist/DictaPilot" ]; then
-    echo "Error: dist/DictaPilot not found. Run build_linux.sh first."
+# Check if binary exists (look in project root dist folder)
+if [ ! -f "$PROJECT_ROOT/dist/DictaPilot" ]; then
+    echo "Error: $PROJECT_ROOT/dist/DictaPilot not found. Run build_linux.sh first."
     exit 1
 fi
 
 # Clean previous package
-rm -f dist/dictapilot_*.deb
+rm -f "$PROJECT_ROOT/dist/dictapilot_*.deb"
 
 # Get version from git or use 1.0.0
 VERSION=$(git describe --tags --always 2>/dev/null | sed 's/v//') || VERSION="1.0.0"
@@ -36,8 +43,8 @@ mkdir -p "$STAGING/usr/bin"
 mkdir -p "$STAGING/usr/share/applications"
 mkdir -p "$STAGING/usr/share/icons/hicolor/256x256/apps"
 
-# Copy binary
-cp dist/DictaPilot "$STAGING/usr/bin/"
+# Copy binary from project root dist
+cp "$PROJECT_ROOT/dist/DictaPilot" "$STAGING/usr/bin/"
 chmod 755 "$STAGING/usr/bin/DictaPilot"
 
 # Create .desktop file
@@ -93,11 +100,11 @@ fpm \
 # Cleanup
 rm -rf "$STAGING"
 
-if [ -f "dictapilot_${VERSION}_amd64.deb" ]; then
-    mv dictapilot_${VERSION}_amd64.deb dist/
+if [ -f "$PROJECT_ROOT/dictapilot_${VERSION}_amd64.deb" ]; then
+    mv "$PROJECT_ROOT/dictapilot_${VERSION}_amd64.deb" "$PROJECT_ROOT/dist/"
     echo ""
     echo "=== .deb Build Complete ===" 
-    echo "Output: dist/dictapilot_${VERSION}_amd64.deb"
+    echo "Output: $PROJECT_ROOT/dist/dictapilot_${VERSION}_amd64.deb"
 else
     echo "Build failed!"
     exit 1

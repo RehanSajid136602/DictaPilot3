@@ -9,3 +9,7 @@ pynput
 Pillow
 PySide6
 pyinstaller
+fastapi
+uvicorn
+python-multipart
+websockets

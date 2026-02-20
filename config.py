@@ -39,7 +39,7 @@ from dataclasses import dataclass, field, asdict
 def get_config_path() -> Path:
     """Get platform-specific config file path"""
     system = platform.system()
-    
+
     if system == "Windows":
         config_dir = Path(os.environ.get("APPDATA", ""))
         return config_dir / "DictaPilot" / "config.json"
@@ -85,24 +85,22 @@ DEFAULT_CONFIG = {
     # Wayland-specific settings
     "display_server": "auto",  # "auto", "wayland", "x11"
     "wayland_compositor": "auto",  # "auto", "gnome", "kde", "sway"
-    # Streaming transcription settings
+    # Streaming settings
     "streaming_enabled": True,
-    "streaming_chunk_duration": 1.5,  # seconds per chunk
-    "streaming_chunk_overlap": 0.3,  # overlap between chunks
-    "streaming_min_chunks": 2,  # minimum chunks before first result
-    "streaming_final_pass": True,  # run final accuracy pass
-    # Agent mode settings
-    "agent_auto_detect": True,  # auto-detect agent mode from speech
-    "agent_output_format": "structured",  # "structured", "markdown", "plain"
-    "agent_webhook_url": "",  # webhook URL for agent integration
-    "agent_ide_integration": False,  # enable IDE integration
+    "streaming_chunk_duration": 0.1,
+    "streaming_chunk_overlap": 0.02,
+    "streaming_min_chunks": 3,
+    "streaming_final_pass": True,
+    # Agent settings
+    "agent_output_format": "markdown",
+    "agent_webhook_url": "",
+    "agent_ide_integration": False,
     # Spec mode settings
     "spec_mode_enabled": True,
     "spec_template": "standard",
     "spec_auto_detect_intent": True,
     "spec_format": "standard",
     "spec_storage_enabled": True,
-    "agent_endpoints": "",
     "workflow_format": "openspec",
     # CLI behavior settings
     "cli_auto_detect": True,
@@ -158,24 +156,24 @@ class DictaPilotConfig:
     # Wayland-specific settings
     display_server: str = "auto"  # "auto", "wayland", "x11"
     wayland_compositor: str = "auto"  # "auto", "gnome", "kde", "sway"
-    # Streaming transcription settings
+    # Streaming settings
     streaming_enabled: bool = True
-    streaming_chunk_duration: float = 1.5  # seconds per chunk
-    streaming_chunk_overlap: float = 0.3  # overlap between chunks
-    streaming_min_chunks: int = 2  # minimum chunks before first result
-    streaming_final_pass: bool = True  # run final accuracy pass
-    # Agent mode settings
-    agent_auto_detect: bool = True  # auto-detect agent mode from speech
-    agent_output_format: str = "structured"  # "structured", "markdown", "plain"
-    agent_webhook_url: str = ""  # webhook URL for agent integration
-    agent_ide_integration: bool = False  # enable IDE integration
+    streaming_chunk_duration: float = 0.1
+    streaming_chunk_overlap: float = 0.02
+    streaming_min_chunks: int = 3
+    streaming_final_pass: bool = True
+    # Agent settings
+    agent_output_format: str = "markdown"
+    agent_webhook_url: str = ""
+    agent_ide_integration: bool = False
     # Spec mode settings
     spec_mode_enabled: bool = True  # enable specification-driven workflow
-    spec_template: str = "standard"  # "standard", "minimal", "detailed", "openspec", "luna", "github"
+    spec_template: str = (
+        "standard"  # "standard", "minimal", "detailed", "openspec", "luna", "github"
+    )
     spec_auto_detect_intent: bool = True  # auto-detect spec vs code vs docs
     spec_format: str = "standard"  # default export format
     spec_storage_enabled: bool = True  # enable spec versioning
-    agent_endpoints: str = ""  # JSON string of IDE/agent webhook endpoints
     workflow_format: str = "openspec"  # "openspec", "luna", "github-spec-kit"
     # CLI behavior settings
     cli_auto_detect: bool = True  # auto-detect CLI/terminal environments
@@ -194,20 +192,20 @@ class DictaPilotConfig:
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
-    
+
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "DictaPilotConfig":
         if data is None:
             return cls()
         return cls(**{k: v for k, v in data.items() if k in cls.__dataclass_fields__})
-    
+
     def save(self, path: Optional[Path] = None) -> None:
         """Save config to JSON file"""
         path = path or get_config_path()
         path.parent.mkdir(parents=True, exist_ok=True)
         with open(path, "w") as f:
             json.dump(self.to_dict(), f, indent=2)
-    
+
     @classmethod
     def load(cls, path: Optional[Path] = None) -> "DictaPilotConfig":
         """Load config from JSON file, return defaults if not exists"""
@@ -228,7 +226,7 @@ def load_config() -> DictaPilotConfig:
     Priority: CLI args > env vars > config file > defaults
     """
     config = DictaPilotConfig.load()
-    
+
     env_overrides = {
         "GROQ_API_KEY": os.getenv("GROQ_API_KEY"),
         "HOTKEY": os.getenv("HOTKEY"),
@@ -295,7 +293,7 @@ def load_config() -> DictaPilotConfig:
         "FLOATING_REDUCED_MOTION": os.getenv("FLOATING_REDUCED_MOTION"),
         "FLOATING_LAYOUT": os.getenv("FLOATING_LAYOUT"),
     }
-    
+
     for key, value in env_overrides.items():
         if value is not None:
             if key == "HOTKEY":
@@ -317,7 +315,11 @@ def load_config() -> DictaPilotConfig:
             elif key == "HOTKEY_BACKEND":
                 config.hotkey_backend = value.lower()
             elif key == "RESET_TRANSCRIPT_EACH_RECORDING":
-                config.reset_transcript_each_recording = value.lower() in ("1", "true", "yes")
+                config.reset_transcript_each_recording = value.lower() in (
+                    "1",
+                    "true",
+                    "yes",
+                )
             # New BridgeVoice-style improvements
             elif key == "MODE":
                 config.mode = value.lower()
@@ -360,7 +362,61 @@ def load_config() -> DictaPilotConfig:
             elif key == "WAYLAND_COMPOSITOR":
                 if value.lower() in ("auto", "gnome", "kde", "sway"):
                     config.wayland_compositor = value.lower()
-            # Streaming transcription settings
+            # Spec mode settings
+            elif key == "SPEC_MODE_ENABLED":
+                config.spec_mode_enabled = value.lower() in ("1", "true", "yes")
+            elif key == "SPEC_TEMPLATE":
+                if value.lower() in (
+                    "standard",
+                    "minimal",
+                    "detailed",
+                    "openspec",
+                    "luna",
+                    "github",
+                ):
+                    config.spec_template = value.lower()
+            elif key == "SPEC_AUTO_DETECT_INTENT":
+                config.spec_auto_detect_intent = value.lower() in ("1", "true", "yes")
+            elif key == "SPEC_FORMAT":
+                config.spec_format = value.lower()
+            elif key == "SPEC_STORAGE_ENABLED":
+                config.spec_storage_enabled = value.lower() in ("1", "true", "yes")
+            elif key == "WORKFLOW_FORMAT":
+                if value.lower() in ("openspec", "luna", "github-spec-kit"):
+                    config.workflow_format = value.lower()
+            # CLI behavior settings
+            elif key == "CLI_AUTO_DETECT":
+                config.cli_auto_detect = value.lower() in ("1", "true", "yes")
+            elif key == "CLI_STRIP_NEWLINES":
+                config.cli_strip_newlines = value.lower() in ("1", "true", "yes")
+            elif key == "CLI_NEWLINE_KEYWORD":
+                config.cli_newline_keyword = value
+            # Grammar settings
+            elif key == "GRAMMAR_PRESERVE_CODE":
+                config.grammar_preserve_code = value.lower() in ("1", "true", "yes")
+            elif key == "GRAMMAR_PRESERVE_TECHNICAL":
+                config.grammar_preserve_technical = value.lower() in (
+                    "1",
+                    "true",
+                    "yes",
+                )
+            # Modern UI/UX settings
+            elif key == "FLOATING_UI_STYLE":
+                if value.lower() in ("modern", "classic"):
+                    config.floating_ui_style = value.lower()
+            elif key == "FLOATING_ACCENT_COLOR":
+                if value.lower() in ("blue", "purple", "green"):
+                    config.floating_accent_color = value.lower()
+            elif key == "FLOATING_GLASSMORPHISM":
+                config.floating_glassmorphism = value.lower() in ("1", "true", "yes")
+            elif key == "FLOATING_ANIMATIONS":
+                config.floating_animations = value.lower() in ("1", "true", "yes")
+            elif key == "FLOATING_REDUCED_MOTION":
+                config.floating_reduced_motion = value.lower() in ("1", "true", "yes")
+            elif key == "FLOATING_LAYOUT":
+                if value.lower() in ("circular", "pill", "card"):
+                    config.floating_layout = value.lower()
+            # Streaming settings
             elif key == "STREAMING_ENABLED":
                 config.streaming_enabled = value.lower() in ("1", "true", "yes")
             elif key == "STREAMING_CHUNK_DURATION":
@@ -380,61 +436,14 @@ def load_config() -> DictaPilotConfig:
                     pass
             elif key == "STREAMING_FINAL_PASS":
                 config.streaming_final_pass = value.lower() in ("1", "true", "yes")
-            # Agent mode settings
-            elif key == "AGENT_AUTO_DETECT":
-                config.agent_auto_detect = value.lower() in ("1", "true", "yes")
+            # Agent settings
             elif key == "AGENT_OUTPUT_FORMAT":
-                if value.lower() in ("structured", "markdown", "plain"):
+                if value.lower() in ("markdown", "plain", "json"):
                     config.agent_output_format = value.lower()
             elif key == "AGENT_WEBHOOK_URL":
                 config.agent_webhook_url = value
             elif key == "AGENT_IDE_INTEGRATION":
                 config.agent_ide_integration = value.lower() in ("1", "true", "yes")
-            # Spec mode settings
-            elif key == "SPEC_MODE_ENABLED":
-                config.spec_mode_enabled = value.lower() in ("1", "true", "yes")
-            elif key == "SPEC_TEMPLATE":
-                if value.lower() in ("standard", "minimal", "detailed", "openspec", "luna", "github"):
-                    config.spec_template = value.lower()
-            elif key == "SPEC_AUTO_DETECT_INTENT":
-                config.spec_auto_detect_intent = value.lower() in ("1", "true", "yes")
-            elif key == "SPEC_FORMAT":
-                config.spec_format = value.lower()
-            elif key == "SPEC_STORAGE_ENABLED":
-                config.spec_storage_enabled = value.lower() in ("1", "true", "yes")
-            elif key == "AGENT_ENDPOINTS":
-                config.agent_endpoints = value
-            elif key == "WORKFLOW_FORMAT":
-                if value.lower() in ("openspec", "luna", "github-spec-kit"):
-                    config.workflow_format = value.lower()
-            # CLI behavior settings
-            elif key == "CLI_AUTO_DETECT":
-                config.cli_auto_detect = value.lower() in ("1", "true", "yes")
-            elif key == "CLI_STRIP_NEWLINES":
-                config.cli_strip_newlines = value.lower() in ("1", "true", "yes")
-            elif key == "CLI_NEWLINE_KEYWORD":
-                config.cli_newline_keyword = value
-            # Grammar settings
-            elif key == "GRAMMAR_PRESERVE_CODE":
-                config.grammar_preserve_code = value.lower() in ("1", "true", "yes")
-            elif key == "GRAMMAR_PRESERVE_TECHNICAL":
-                config.grammar_preserve_technical = value.lower() in ("1", "true", "yes")
-            # Modern UI/UX settings
-            elif key == "FLOATING_UI_STYLE":
-                if value.lower() in ("modern", "classic"):
-                    config.floating_ui_style = value.lower()
-            elif key == "FLOATING_ACCENT_COLOR":
-                if value.lower() in ("blue", "purple", "green"):
-                    config.floating_accent_color = value.lower()
-            elif key == "FLOATING_GLASSMORPHISM":
-                config.floating_glassmorphism = value.lower() in ("1", "true", "yes")
-            elif key == "FLOATING_ANIMATIONS":
-                config.floating_animations = value.lower() in ("1", "true", "yes")
-            elif key == "FLOATING_REDUCED_MOTION":
-                config.floating_reduced_motion = value.lower() in ("1", "true", "yes")
-            elif key == "FLOATING_LAYOUT":
-                if value.lower() in ("circular", "pill", "card"):
-                    config.floating_layout = value.lower()
 
     return config
 
@@ -449,7 +458,9 @@ def apply_config_to_env(config: DictaPilotConfig) -> None:
     os.environ["PASTE_MODE"] = config.paste_mode
     os.environ["PASTE_BACKEND"] = config.paste_backend
     os.environ["HOTKEY_BACKEND"] = config.hotkey_backend
-    os.environ["RESET_TRANSCRIPT_EACH_RECORDING"] = "1" if config.reset_transcript_each_recording else "0"
+    os.environ["RESET_TRANSCRIPT_EACH_RECORDING"] = (
+        "1" if config.reset_transcript_each_recording else "0"
+    )
     # New BridgeVoice-style improvements
     os.environ["MODE"] = config.mode
     os.environ["AUDIO_DEVICE"] = config.audio_device
@@ -470,24 +481,14 @@ def apply_config_to_env(config: DictaPilotConfig) -> None:
     # Wayland-specific settings
     os.environ["DISPLAY_SERVER"] = config.display_server
     os.environ["WAYLAND_COMPOSITOR"] = config.wayland_compositor
-    # Streaming transcription settings
-    os.environ["STREAMING_ENABLED"] = "1" if config.streaming_enabled else "0"
-    os.environ["STREAMING_CHUNK_DURATION"] = str(config.streaming_chunk_duration)
-    os.environ["STREAMING_CHUNK_OVERLAP"] = str(config.streaming_chunk_overlap)
-    os.environ["STREAMING_MIN_CHUNKS"] = str(config.streaming_min_chunks)
-    os.environ["STREAMING_FINAL_PASS"] = "1" if config.streaming_final_pass else "0"
-    # Agent mode settings
-    os.environ["AGENT_AUTO_DETECT"] = "1" if config.agent_auto_detect else "0"
-    os.environ["AGENT_OUTPUT_FORMAT"] = config.agent_output_format
-    os.environ["AGENT_WEBHOOK_URL"] = config.agent_webhook_url
-    os.environ["AGENT_IDE_INTEGRATION"] = "1" if config.agent_ide_integration else "0"
     # Spec mode settings
     os.environ["SPEC_MODE_ENABLED"] = "1" if config.spec_mode_enabled else "0"
     os.environ["SPEC_TEMPLATE"] = config.spec_template
-    os.environ["SPEC_AUTO_DETECT_INTENT"] = "1" if config.spec_auto_detect_intent else "0"
+    os.environ["SPEC_AUTO_DETECT_INTENT"] = (
+        "1" if config.spec_auto_detect_intent else "0"
+    )
     os.environ["SPEC_FORMAT"] = config.spec_format
     os.environ["SPEC_STORAGE_ENABLED"] = "1" if config.spec_storage_enabled else "0"
-    os.environ["AGENT_ENDPOINTS"] = config.agent_endpoints
     os.environ["WORKFLOW_FORMAT"] = config.workflow_format
     # CLI behavior settings
     os.environ["CLI_AUTO_DETECT"] = "1" if config.cli_auto_detect else "0"
@@ -495,11 +496,25 @@ def apply_config_to_env(config: DictaPilotConfig) -> None:
     os.environ["CLI_NEWLINE_KEYWORD"] = config.cli_newline_keyword
     # Grammar settings
     os.environ["GRAMMAR_PRESERVE_CODE"] = "1" if config.grammar_preserve_code else "0"
-    os.environ["GRAMMAR_PRESERVE_TECHNICAL"] = "1" if config.grammar_preserve_technical else "0"
+    os.environ["GRAMMAR_PRESERVE_TECHNICAL"] = (
+        "1" if config.grammar_preserve_technical else "0"
+    )
     # Modern UI/UX settings
     os.environ["FLOATING_UI_STYLE"] = config.floating_ui_style
     os.environ["FLOATING_ACCENT_COLOR"] = config.floating_accent_color
     os.environ["FLOATING_GLASSMORPHISM"] = "1" if config.floating_glassmorphism else "0"
     os.environ["FLOATING_ANIMATIONS"] = "1" if config.floating_animations else "0"
-    os.environ["FLOATING_REDUCED_MOTION"] = "1" if config.floating_reduced_motion else "0"
+    os.environ["FLOATING_REDUCED_MOTION"] = (
+        "1" if config.floating_reduced_motion else "0"
+    )
     os.environ["FLOATING_LAYOUT"] = config.floating_layout
+    # Streaming settings
+    os.environ["STREAMING_ENABLED"] = "1" if config.streaming_enabled else "0"
+    os.environ["STREAMING_CHUNK_DURATION"] = str(config.streaming_chunk_duration)
+    os.environ["STREAMING_CHUNK_OVERLAP"] = str(config.streaming_chunk_overlap)
+    os.environ["STREAMING_MIN_CHUNKS"] = str(config.streaming_min_chunks)
+    os.environ["STREAMING_FINAL_PASS"] = "1" if config.streaming_final_pass else "0"
+    # Agent settings
+    os.environ["AGENT_OUTPUT_FORMAT"] = config.agent_output_format
+    os.environ["AGENT_WEBHOOK_URL"] = config.agent_webhook_url
+    os.environ["AGENT_IDE_INTEGRATION"] = "1" if config.agent_ide_integration else "0"

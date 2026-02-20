@@ -81,6 +81,7 @@ SPACING_TOKENS = {
 RADIUS_TOKENS = {
     "small": 6,
     "medium": 8,
+    "large": 12,
 }
 
 
@@ -129,7 +130,7 @@ QMainWindow, QWidget {{
 /* Sidebar */
 QFrame#sidebar {{
     background-color: {c['bg-mantle']};
-    border-right: 1px solid {c['bg-surface1']};
+    border: none;
 }}
 
 QPushButton#nav-button {{
@@ -137,7 +138,9 @@ QPushButton#nav-button {{
     color: {c['text-secondary']};
     border: none;
     text-align: left;
-    padding: 12px 16px;
+    padding: 14px 16px;
+    margin: 4px 8px;
+    border-radius: 8px;
     border-left: 3px solid transparent;
 }}
 
@@ -146,9 +149,9 @@ QPushButton#nav-button:hover {{
 }}
 
 QPushButton#nav-button[active="true"] {{
-    background-color: {c['bg-surface1']};
+    background-color: {c['bg-surface0']};
     color: {c['text-primary']};
-    border-left: 3px solid {c['accent-blue']};
+    border-left: none;
     font-weight: bold;
 }}
 
@@ -217,8 +220,8 @@ QPushButton:focus {{
 
 /* Cards and Group Boxes */
 QGroupBox {{
-    border: 1px solid {c['bg-surface1']};
-    border-radius: 8px;
+    border: none;
+    border-radius: 12px;
     margin-top: 12px;
     padding-top: 12px;
     font-weight: bold;
@@ -233,15 +236,16 @@ QGroupBox::title {{
 
 QFrame[card="true"] {{
     background-color: {c['bg-surface0']};
-    border: 1px solid {c['bg-surface1']};
-    border-radius: 8px;
+    border: none;
+    border-radius: 12px;
     padding: 16px;
 }}
 
 /* Input Fields */
 QLineEdit, QTextEdit, QComboBox, QSpinBox, QDoubleSpinBox {{
     background-color: {c['bg-surface0']};
-    border: 1px solid {c['bg-surface1']};
+    border: none;
+    border-bottom: 2px solid transparent;
     border-radius: 6px;
     padding: 8px;
     color: {c['text-primary']};
@@ -249,7 +253,7 @@ QLineEdit, QTextEdit, QComboBox, QSpinBox, QDoubleSpinBox {{
 }}
 
 QLineEdit:focus, QTextEdit:focus, QComboBox:focus, QSpinBox:focus {{
-    border: 1px solid {c['accent-blue']};
+    border-bottom: 2px solid {c['accent-blue']};
 }}
 
 QLineEdit::placeholder {{
@@ -265,24 +269,24 @@ QCheckBox::indicator {{
 
 QCheckBox::indicator:unchecked {{
     background-color: {c['bg-surface0']};
-    border: 1px solid {c['bg-surface1']};
+    border: none;
 }}
 
 QCheckBox::indicator:checked {{
     background-color: {c['accent-blue']};
-    border: 1px solid {c['accent-blue']};
+    border: none;
 }}
 
 /* Lists */
 QListWidget {{
     background-color: {c['bg-surface0']};
-    border: 1px solid {c['bg-surface1']};
+    border: none;
     border-radius: 6px;
 }}
 
 QListWidget::item {{
     padding: 8px;
-    border-bottom: 1px solid {c['bg-surface1']};
+    border: none;
 }}
 
 QListWidget::item:hover {{
@@ -297,7 +301,7 @@ QListWidget::item:selected {{
 /* Scrollbars */
 QScrollBar:vertical {{
     background-color: {c['bg-surface0']};
-    width: 12px;
+    width: 8px;
     border-radius: 6px;
 }}
 
@@ -313,7 +317,7 @@ QScrollBar::handle:vertical:hover {{
 
 QScrollBar:horizontal {{
     background-color: {c['bg-surface0']};
-    height: 12px;
+    height: 8px;
     border-radius: 6px;
 }}
 
@@ -326,7 +330,7 @@ QScrollBar::handle:horizontal {{
 /* Tooltips */
 QToolTip {{
     background-color: {c['bg-surface0']};
-    border: 1px solid {c['bg-surface1']};
+    border: none;
     border-radius: 4px;
     color: {c['text-primary']};
     padding: 4px 8px;
@@ -336,13 +340,13 @@ QToolTip {{
 QStatusBar {{
     background-color: {c['bg-mantle']};
     color: {c['text-secondary']};
-    border-top: 1px solid {c['bg-surface1']};
+    border: none;
 }}
 
 /* Toolbar */
 QToolBar {{
     background-color: {c['bg-mantle']};
-    border-bottom: 1px solid {c['bg-surface1']};
+    border: none;
     spacing: 8px;
     padding: 8px;
 }}

@@ -113,7 +113,7 @@ class KPICard(QFrame):
         # Large value
         self.value_label = QLabel(value)
         font = QFont()
-        font.setPixelSize(32)
+        font.setPixelSize(36)
         font.setBold(True)
         self.value_label.setFont(font)
         self.value_label.setStyleSheet(f"color: {self.theme_manager.get_color('accent-blue')};")
