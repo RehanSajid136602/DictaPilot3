@@ -66,7 +66,7 @@ def get_bundle_dir():
 
 
 # Launch onboarding wizard if first run
-if not SETUP_COMPLETED and "--no-wizard" not in sys.argv and "--gui" not in sys.argv:
+if not SETUP_COMPLETED and "--no-wizard" not in sys.argv:
     try:
         from onboarding_wizard import run_wizard
 
@@ -77,7 +77,8 @@ if not SETUP_COMPLETED and "--no-wizard" not in sys.argv and "--gui" not in sys.
         # Reload environment after wizard
         load_dotenv(override=True)
     except ImportError:
-        print("Warning: Onboarding wizard not available. Continuing with manual setup.")
+        print("First run detected. Please set GROQ_API_KEY in .env file or environment.")
+        print("Continuing with manual setup.")
     except Exception as e:
         print(f"Warning: Could not launch wizard: {e}")
         print("Continuing with manual setup.")
@@ -151,7 +152,7 @@ def _env_flag(name: str, default: str = "1") -> bool:
 
 SMART_EDIT = _env_flag("SMART_EDIT", "1")
 SMART_MODE = os.getenv("SMART_MODE", "llm").strip().lower()
-PASTE_MODE = os.getenv("PASTE_MODE", "delta").strip().lower()
+PASTE_MODE = os.getenv("PASTE_MODE", "full").strip().lower()
 PASTE_POLICY = os.getenv("PASTE_POLICY", "final_only").strip().lower()
 PASTE_BACKEND = os.getenv("PASTE_BACKEND", "auto").strip().lower()
 HOTKEY_BACKEND = os.getenv("HOTKEY_BACKEND", "auto").strip().lower()
@@ -231,6 +232,23 @@ FLOATING_RECORDING_COLOR = os.getenv("FLOATING_RECORDING_COLOR", "cyan").strip()
 FLOATING_PROCESSING_COLOR = (
     os.getenv("FLOATING_PROCESSING_COLOR", "purple").strip().lower()
 )
+
+# Wispr Flow UI integration: Apply Wispr Flow defaults when UI_STYLE=wispr_flow
+_UI_STYLE = os.getenv("UI_STYLE", "classic").strip().lower()
+if _UI_STYLE == "wispr_flow":
+    # Apply Wispr Flow default colors and settings
+    if "FLOATING_UI_STYLE" not in os.environ:
+        FLOATING_UI_STYLE = "modern"
+    if "FLOATING_GLASSMORPHISM" not in os.environ:
+        FLOATING_GLASSMORPHISM = True
+    if "FLOATING_ANIMATIONS" not in os.environ:
+        FLOATING_ANIMATIONS = True
+    if "FLOATING_RECORDING_COLOR" not in os.environ:
+        FLOATING_RECORDING_COLOR = "cyan"
+    if "FLOATING_PROCESSING_COLOR" not in os.environ:
+        FLOATING_PROCESSING_COLOR = "purple"
+    if "FLOATING_LAYOUT" not in os.environ:
+        FLOATING_LAYOUT = "pill"
 
 _VISUAL_STATE_BY_MODE = {
     "record": "record",
@@ -2090,7 +2108,7 @@ def main():
         print("")
 
 
-def _setup_dictation_pipeline(gui, recorder, processing_event, shutdown_event, config, dashboard=None):
+def _setup_dictation_pipeline(gui, recorder, processing_event, shutdown_event, config):
     """Setup hotkey listener and recording callbacks for the floating window.
     
     Args:
@@ -2099,7 +2117,6 @@ def _setup_dictation_pipeline(gui, recorder, processing_event, shutdown_event, c
         processing_event: threading.Event for processing state
         shutdown_event: threading.Event for shutdown coordination
         config: DictaPilotConfig instance
-        dashboard: Optional DictaPilotMainDashboard instance (if running with GUI)
     
     Returns:
         hotkey_manager: HotkeyManager instance (or None if registration failed)
@@ -2141,7 +2158,7 @@ def _setup_dictation_pipeline(gui, recorder, processing_event, shutdown_event, c
                     pass
     
     def _request_shutdown():
-        """Shutdown dictation pipeline but keep app running if dashboard exists"""
+        """Shutdown dictation pipeline and quit the application"""
         if shutdown_event.is_set():
             return
         shutdown_event.set()
@@ -2159,19 +2176,11 @@ def _setup_dictation_pipeline(gui, recorder, processing_event, shutdown_event, c
         except Exception:
             pass
         
-        # Only quit app if no dashboard is running
-        if dashboard is None:
-            # Normal mode - quit entire application
-            try:
-                gui.quit()
-            except Exception:
-                pass
-        else:
-            # Dashboard mode - just close/hide floating window
-            try:
-                gui.close()
-            except Exception:
-                pass
+        # Quit the application
+        try:
+            gui.quit()
+        except Exception:
+            pass
     
     gui.set_close_callback(_request_shutdown)
     
@@ -2567,11 +2576,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="DictaPilot - Press-and-hold dictation"
     )
-    parser.add_argument("--tray", action="store_true", help="Run with system tray")
-    parser.add_argument("--gui", action="store_true", help="Launch settings dashboard")
-    parser.add_argument(
-        "--legacy-ui", action="store_true", help="Launch legacy settings window"
-    )
     parser.add_argument(
         "--export",
         type=str,
@@ -2593,52 +2597,6 @@ if __name__ == "__main__":
         help="Show Wayland dependency installation instructions",
     )
     args = parser.parse_args()
-
-    # Check config for UI preference
-    from config import load_config
-
-    config = load_config()
-    use_legacy = config.use_legacy_ui if hasattr(config, "use_legacy_ui") else False
-
-    if args.gui or is_frozen():
-        # When running as packaged exe, show settings dashboard by default
-        # This ensures users see the main interface, not just the floating overlay
-        try:
-            if args.legacy_ui or use_legacy:
-                from settings_dashboard import run_dashboard
-
-                sys.exit(run_dashboard() or 0)
-            else:
-                from dashboard_main import DictaPilotMainDashboard
-                from PySide6.QtWidgets import QApplication
-
-                app = QApplication(sys.argv)
-                app.setQuitOnLastWindowClosed(False)  # Prevent auto-quit when windows close
-                
-                # Create floating window alongside dashboard
-                try:
-                    gui = GUIManager()
-                except Exception as ex:
-                    print(f"Warning: Failed to initialize floating window: {ex}", file=sys.stderr)
-                    gui = None
-                
-                dashboard = DictaPilotMainDashboard(config)
-                dashboard.show()
-                
-                # Start hotkey listener so floating window responds to dictation
-                if gui is not None:
-                    recorder = Recorder()
-                    processing_event = threading.Event()
-                    shutdown_event = threading.Event()
-                    hotkey_manager = _setup_dictation_pipeline(gui, recorder, processing_event, shutdown_event, config, dashboard)
-                    if hotkey_manager is None:
-                        print("Warning: Hotkey registration failed, floating window will not respond to hotkey", file=sys.stderr)
-                
-                sys.exit(app.exec())
-        except ImportError as e:
-            print(f"Error: Could not launch settings dashboard: {e}")
-            print("Make sure PySide6 is installed: pip install PySide6")
-            sys.exit(1)
 
     if args.wayland_deps:
         try:

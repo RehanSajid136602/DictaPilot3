@@ -392,6 +392,88 @@ def _backend_order(selected: str) -> List[str]:
 
 
 # ============================================================================
+# Native Clipboard Functions for Reliable Instant Paste
+# ============================================================================
+
+
+def _copy_with_wl_copy(text: str) -> bool:
+    """Copy text to clipboard using wl-copy (Wayland)."""
+    if not shutil.which("wl-copy"):
+        return False
+    try:
+        process = subprocess.run(
+            ["wl-copy"],
+            input=text,
+            capture_output=True,
+            check=True,
+            timeout=2,
+        )
+        return process.returncode == 0
+    except Exception:
+        return False
+
+
+def _copy_with_xclip(text: str) -> bool:
+    """Copy text to clipboard using xclip (X11)."""
+    if not shutil.which("xclip"):
+        return False
+    try:
+        process = subprocess.run(
+            ["xclip", "-selection", "clipboard"],
+            input=text,
+            capture_output=True,
+            check=True,
+            timeout=2,
+        )
+        return process.returncode == 0
+    except Exception:
+        return False
+
+
+def _copy_with_xsel(text: str) -> bool:
+    """Copy text to clipboard using xsel (X11)."""
+    if not shutil.which("xsel"):
+        return False
+    try:
+        process = subprocess.run(
+            ["xsel", "--clipboard", "--input"],
+            input=text,
+            capture_output=True,
+            check=True,
+            timeout=2,
+        )
+        return process.returncode == 0
+    except Exception:
+        return False
+
+
+def _copy_to_clipboard(text: str) -> bool:
+    """
+    Copy text to clipboard using the best available method.
+    Tries native tools first (wl-copy, xclip, xsel), then pyperclip.
+    Returns True if successful.
+    """
+    if not text:
+        return True
+
+    # Try native clipboard tools first (most reliable)
+    display_server = _get_display_server()
+
+    if display_server == "wayland":
+        if _copy_with_wl_copy(text):
+            return True
+
+    # X11 or fallback
+    if _copy_with_xclip(text):
+        return True
+    if _copy_with_xsel(text):
+        return True
+
+    # Fall back to pyperclip
+    return _copy_with_pyperclip(text)
+
+
+# ============================================================================
 # Wayland Paste Backend Functions
 # ============================================================================
 
@@ -612,10 +694,12 @@ def _paste_insert(text: str, backend: str = "auto") -> None:
     if not text:
         return
 
-    if _copy_with_pyperclip(text):
+    # Try clipboard-based paste first (instant, no typing effect)
+    if _copy_to_clipboard(text):
         _send_hotkey("ctrl+v", backend=backend)
         return
 
+    # Fallback: type text character by character (slow)
     _type_text(text, backend=backend)
 
 

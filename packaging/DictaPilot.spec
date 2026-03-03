@@ -25,6 +25,8 @@ datas = [
     (str(project_root / "LICENSE"), "."),
     (str(project_root / "README.md"), "."),
     (str(project_root / "docs" / "modern-ui-guide.md"), "docs"),
+    (str(project_root / "dictapilot_gui" / "README.md"), "dictapilot_gui"),
+    (str(project_root / "dictapilot_gui" / "requirements.txt"), "dictapilot_gui"),
 ]
 
 # Check if logo exists, add to datas if present
@@ -121,10 +123,26 @@ a = Analysis(
         'recorder',
         'app_context',
         'config',
-        'settings_dashboard',
-        'onboarding_wizard',
         'secrets_manager',
         'diff_utils',
+        
+        # GUI modules
+        'dictapilot_gui',
+        'dictapilot_gui.config',
+        'dictapilot_gui.config.settings',
+        'dictapilot_gui.audio',
+        'dictapilot_gui.audio.recorder',
+        'dictapilot_gui.stt',
+        'dictapilot_gui.stt.transcriber',
+        'dictapilot_gui.ui',
+        'dictapilot_gui.ui.main_window',
+        'dictapilot_gui.ui.settings_dialog',
+        
+        # faster-whisper dependencies
+        'faster_whisper',
+        'ctranslate2',
+        'tokenizers',
+        'huggingface_hub',
         
         # Audio modules
         'audio.smoothing',
@@ -134,22 +152,6 @@ a = Analysis(
         # Platform backends
         'x11_backend',
         'wayland_backend',
-        
-        # Dashboard modules
-        'dashboard_main',
-        'dashboard_themes',
-        'dashboard_views.home_view',
-        'dashboard_views.settings_view',
-        'dashboard_views.statistics_view',
-        'dashboard_views.diagnostics_view',
-        'dashboard_views.history_view',
-        'dashboard_components.cards',
-        'dashboard_components.charts',
-        'dashboard_components.widgets',
-        'dashboard_components.animations',
-        'dashboard_components.notifications',
-        'dashboard_components.wizard',
-        'dashboard_components.accessibility',
         
         # Additional dependencies that may be needed
         'dateutil',
@@ -193,6 +195,7 @@ a = Analysis(
 
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 
+# CLI executable
 exe = EXE(
     pyz,
     a.scripts,
@@ -211,6 +214,33 @@ exe = EXE(
     ],
     runtime_tmpdir=None,
     console=True,  # Set to True for debugging (shows console window)
+    disable_windowed_traceback=False,
+    argv_emulation=False,
+    target_arch=None,
+    codesign_identity=None,
+    entitlements_file=None,
+    icon=str(logo_path) if logo_path.exists() else None,
+)
+
+# GUI executable (no console)
+exe_gui = EXE(
+    pyz,
+    a.scripts,
+    a.binaries,
+    a.zipfiles,
+    a.datas,
+    [],
+    name='DictaPilot-GUI',
+    debug=False,
+    bootloader_ignore_signals=False,
+    strip=False,
+    upx=True,
+    upx_exclude=[
+        'vcruntime140.dll',
+        'vcruntime140_1.dll',
+    ],
+    runtime_tmpdir=None,
+    console=False,  # No console window for GUI
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,

@@ -61,7 +61,7 @@ DEFAULT_CONFIG = {
     "smart_mode": "llm",
     "smart_edit": True,
     "llm_always_clean": True,
-    "paste_mode": "delta",
+    "paste_mode": "full",
     "paste_backend": "auto",
     "hotkey_backend": "auto",
     "reset_transcript_each_recording": True,
@@ -109,11 +109,6 @@ DEFAULT_CONFIG = {
     # Grammar settings
     "grammar_preserve_code": True,
     "grammar_preserve_technical": True,
-    # Dashboard preferences
-    "dashboard_sidebar_collapsed": False,
-    "dashboard_default_view": "home",
-    "dashboard_chart_time_range": "7days",
-    "use_legacy_ui": False,
     # Modern UI/UX settings (2026 redesign)
     "floating_ui_style": "modern",  # "modern" or "classic"
     "floating_accent_color": "blue",  # "blue", "purple", "green"
@@ -121,6 +116,9 @@ DEFAULT_CONFIG = {
     "floating_animations": True,
     "floating_reduced_motion": False,
     "floating_layout": "pill",  # "circular", "pill", "card"
+    # Performance settings
+    "performance_profile": "auto",  # "auto", "high", "balanced", "low", "minimal"
+    "performance_auto_detect": True,  # Auto-detect hardware capabilities
 }
 
 
@@ -189,6 +187,9 @@ class DictaPilotConfig:
     floating_animations: bool = True
     floating_reduced_motion: bool = False
     floating_layout: str = "pill"  # "circular", "pill", "card"
+    # Performance settings
+    performance_profile: str = "auto"  # "auto", "high", "balanced", "low", "minimal"
+    performance_auto_detect: bool = True  # Auto-detect hardware capabilities
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
@@ -292,6 +293,9 @@ def load_config() -> DictaPilotConfig:
         "FLOATING_ANIMATIONS": os.getenv("FLOATING_ANIMATIONS"),
         "FLOATING_REDUCED_MOTION": os.getenv("FLOATING_REDUCED_MOTION"),
         "FLOATING_LAYOUT": os.getenv("FLOATING_LAYOUT"),
+        # Performance settings
+        "PERFORMANCE_PROFILE": os.getenv("PERFORMANCE_PROFILE"),
+        "PERFORMANCE_AUTO_DETECT": os.getenv("PERFORMANCE_AUTO_DETECT"),
     }
 
     for key, value in env_overrides.items():
@@ -416,6 +420,12 @@ def load_config() -> DictaPilotConfig:
             elif key == "FLOATING_LAYOUT":
                 if value.lower() in ("circular", "pill", "card"):
                     config.floating_layout = value.lower()
+            # Performance settings
+            elif key == "PERFORMANCE_PROFILE":
+                if value.lower() in ("auto", "high", "balanced", "low", "minimal"):
+                    config.performance_profile = value.lower()
+            elif key == "PERFORMANCE_AUTO_DETECT":
+                config.performance_auto_detect = value.lower() in ("1", "true", "yes")
             # Streaming settings
             elif key == "STREAMING_ENABLED":
                 config.streaming_enabled = value.lower() in ("1", "true", "yes")
@@ -508,6 +518,9 @@ def apply_config_to_env(config: DictaPilotConfig) -> None:
         "1" if config.floating_reduced_motion else "0"
     )
     os.environ["FLOATING_LAYOUT"] = config.floating_layout
+    # Performance settings
+    os.environ["PERFORMANCE_PROFILE"] = config.performance_profile
+    os.environ["PERFORMANCE_AUTO_DETECT"] = "1" if config.performance_auto_detect else "0"
     # Streaming settings
     os.environ["STREAMING_ENABLED"] = "1" if config.streaming_enabled else "0"
     os.environ["STREAMING_CHUNK_DURATION"] = str(config.streaming_chunk_duration)

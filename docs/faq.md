@@ -150,6 +150,70 @@ Profiles let you configure different settings per application:
 
 ---
 
+## Desktop GUI
+
+### What is the DictaPilot GUI?
+
+The DictaPilot GUI is a modern desktop application with a visual interface for speech-to-text transcription. Unlike the main DictaPilot which uses a hotkey workflow, the GUI provides:
+
+- Large transcription text area
+- Click-to-record button with visual states
+- Local Whisper transcription (no cloud API needed)
+- Settings for model, language, and device
+- Copy, save, and clear functionality
+
+### How do I run the GUI?
+
+```bash
+# Install dependencies
+pip install faster-whisper sounddevice soundfile PySide6
+
+# Run the GUI
+python -m dictapilot_gui
+```
+
+### Does the GUI require an API key?
+
+No! The GUI uses **faster-whisper** for local transcription. Models download automatically on first use:
+
+- **tiny** (~39MB) - Fastest, good for testing
+- **base** (~74MB) - Good balance
+- **small** (~244MB) - Better accuracy
+- **medium** (~769MB) - Best accuracy
+
+### Can I use the GUI offline?
+
+Yes! After downloading the model, the GUI works completely offline. No internet connection required for transcription.
+
+### How is the GUI different from the main DictaPilot?
+
+| Feature | DictaPilot (main) | DictaPilot GUI |
+|---------|------------------|----------------|
+| Interface | Hotkey-based | Visual GUI |
+| Transcription | Groq API (cloud) | Local Whisper |
+| Internet | Required | Only for model download |
+| Workflow | Hold-to-talk in any app | Click record, see results |
+| Best for | Quick dictation anywhere | Focused transcription sessions |
+
+### Can I use both the CLI and GUI?
+
+Yes! They are independent. Use the main DictaPilot for quick dictation while working, and the GUI for longer transcription sessions or when you need local/offline transcription.
+
+### Where are GUI settings stored?
+
+Settings are saved to:
+- Linux/macOS: `~/.config/dictapilot/gui_config.json`
+- Windows: `%APPDATA%\DictaPilot\gui_config.json`
+
+### Why is the GUI transcription slower than Groq?
+
+Local Whisper runs on your CPU/GPU, while Groq uses powerful cloud servers. For faster local transcription:
+- Use a smaller model (tiny/base)
+- Use CUDA if you have an NVIDIA GPU
+- Close other applications to free CPU
+
+---
+
 ## Modern UI
 
 ### How do I customize the floating window appearance?

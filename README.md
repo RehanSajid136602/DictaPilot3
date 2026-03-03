@@ -50,6 +50,34 @@ python app.py
 
 **Detailed guide:** [Quick Start Guide](docs/quick-start.md)
 
+## 💻 Desktop GUI (New!)
+
+Prefer a visual interface with **local transcription**? Use the DictaPilot GUI:
+
+```bash
+# Install GUI dependencies
+pip install faster-whisper sounddevice soundfile PySide6
+
+# Launch the GUI
+python -m dictapilot_gui
+```
+
+**GUI Features:**
+- 🎨 Modern WhisperFlow-inspired design
+- 📝 Large transcription area with copy/save
+- 🎙️ One-click recording with visual feedback
+- 🔒 **Local transcription** - works offline, no API key needed
+- ⚙️ Settings for model (tiny/base/small/medium), language, device
+- 🌍 Multi-language support with auto-detection
+
+**Why use the GUI?**
+- No Groq API key required (uses local Whisper)
+- Works completely offline after model download
+- Visual feedback and easy editing
+- Great for focused transcription sessions
+
+**Note:** Models auto-download on first use. Choose `tiny` for speed, `medium` for accuracy.
+
 ## 📖 Documentation
 
 ### Getting Started
@@ -154,7 +182,7 @@ python app.py --wayland-deps
 - ✅ Improved documentation (in progress)
 - ✅ Real-time streaming transcription
 - ✅ Wayland support for Linux
-- ⏳ Modern GUI dashboard
+- ✅ Modern GUI dashboard with local transcription
 
 **Phase 2 - Competitive Advantages:**
 - Enhanced agent mode with IDE integration

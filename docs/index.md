@@ -51,6 +51,14 @@ DictaPilot3 is an open-source voice dictation tool that lets you transcribe spee
 
     [:octicons-arrow-right-24: Developer Docs](developer/architecture.md)
 
+-   :material-desktop-mac:{ .lg .middle } **Desktop GUI**
+
+    ---
+
+    Modern GUI with local transcription
+
+    [:octicons-arrow-right-24: `python -m dictapilot_gui`](quick-start.md#step-35-use-dictapilot-gui-alternative)
+
 </div>
 
 ## How It Works
@@ -101,6 +109,27 @@ python app.py
 ```
 
 **Get your free API key:** [console.groq.com](https://console.groq.com)
+
+### Desktop GUI (Alternative)
+
+For a modern GUI with **local transcription** (no API key):
+
+```bash
+# Install GUI dependencies
+pip install faster-whisper sounddevice soundfile PySide6
+
+# Run the GUI
+python -m dictapilot_gui
+```
+
+The GUI offers:
+- Clean, modern interface with large transcription area
+- Local Whisper models (tiny/base/small/medium)
+- One-click recording with visual feedback
+- Copy, save, and settings functionality
+- Works offline after model download
+
+See [Quick Start - GUI Section](quick-start.md#step-35-use-dictapilot-gui-alternative) for details.
 
 ### First Dictation
 
