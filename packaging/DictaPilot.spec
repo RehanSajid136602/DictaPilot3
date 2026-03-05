@@ -19,14 +19,11 @@ except NameError:
     project_root = Path(os.getcwd()).resolve()
 
 # Data files to include
-datas = [
     (str(project_root / ".env.example"), "."),
     (str(project_root / "public" / "asset" / "logo.png"), "public/asset"),
     (str(project_root / "LICENSE"), "."),
     (str(project_root / "README.md"), "."),
     (str(project_root / "docs" / "modern-ui-guide.md"), "docs"),
-    (str(project_root / "dictapilot_gui" / "README.md"), "dictapilot_gui"),
-    (str(project_root / "dictapilot_gui" / "requirements.txt"), "dictapilot_gui"),
 ]
 
 # Check if logo exists, add to datas if present
@@ -126,18 +123,6 @@ a = Analysis(
         'secrets_manager',
         'diff_utils',
         
-        # GUI modules
-        'dictapilot_gui',
-        'dictapilot_gui.config',
-        'dictapilot_gui.config.settings',
-        'dictapilot_gui.audio',
-        'dictapilot_gui.audio.recorder',
-        'dictapilot_gui.stt',
-        'dictapilot_gui.stt.transcriber',
-        'dictapilot_gui.ui',
-        'dictapilot_gui.ui.main_window',
-        'dictapilot_gui.ui.settings_dialog',
-        
         # faster-whisper dependencies
         'faster_whisper',
         'ctranslate2',
@@ -222,29 +207,3 @@ exe = EXE(
     icon=str(logo_path) if logo_path.exists() else None,
 )
 
-# GUI executable (no console)
-exe_gui = EXE(
-    pyz,
-    a.scripts,
-    a.binaries,
-    a.zipfiles,
-    a.datas,
-    [],
-    name='DictaPilot-GUI',
-    debug=False,
-    bootloader_ignore_signals=False,
-    strip=False,
-    upx=True,
-    upx_exclude=[
-        'vcruntime140.dll',
-        'vcruntime140_1.dll',
-    ],
-    runtime_tmpdir=None,
-    console=False,  # No console window for GUI
-    disable_windowed_traceback=False,
-    argv_emulation=False,
-    target_arch=None,
-    codesign_identity=None,
-    entitlements_file=None,
-    icon=str(logo_path) if logo_path.exists() else None,
-)

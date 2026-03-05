@@ -26,11 +26,11 @@ jobs:
       - name: Lint check
         run: |
           pip install pyflakes
-          pyflakes app.py smart_editor.py paste_utils.py x11_backend.py
+          pyflakes app.py smart_editor.py paste_utils.py
 
       - name: Syntax check
         run: |
-          python -m py_compile app.py smart_editor.py paste_utils.py x11_backend.py
+          python -m py_compile app.py smart_editor.py paste_utils.py
           echo "Syntax OK"
 
       - name: Run tests

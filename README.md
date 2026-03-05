@@ -4,9 +4,9 @@
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-![Platform: Windows | macOS | Linux](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgray.svg)
+![Platform: Windows](https://img.shields.io/badge/platform-Windows-lightgray.svg)
 
-**Cross-platform voice dictation with smart editing.** Hold a hotkey, speak, release—your words appear instantly with intelligent cleanup and voice commands.
+**Windows voice dictation with smart editing.** Hold a hotkey, speak, release—your words appear instantly with intelligent cleanup and voice commands.
 
 ## ✨ Key Features
 
@@ -35,9 +35,7 @@ git clone https://github.com/RehanSajid136602/DictaPilot.git
 cd DictaPilot
 
 # 2. Run setup script
-./setup/setup_linux.sh      # Linux
-./setup/setup_macos.command  # macOS
-setup\setup_windows.bat      # Windows
+setup\setup_windows.bat
 
 # 3. Add API key to .env
 echo "GROQ_API_KEY=your_key_here" > .env
@@ -50,34 +48,6 @@ python app.py
 
 **Detailed guide:** [Quick Start Guide](docs/quick-start.md)
 
-## 💻 Desktop GUI (New!)
-
-Prefer a visual interface with **local transcription**? Use the DictaPilot GUI:
-
-```bash
-# Install GUI dependencies
-pip install faster-whisper sounddevice soundfile PySide6
-
-# Launch the GUI
-python -m dictapilot_gui
-```
-
-**GUI Features:**
-- 🎨 Modern WhisperFlow-inspired design
-- 📝 Large transcription area with copy/save
-- 🎙️ One-click recording with visual feedback
-- 🔒 **Local transcription** - works offline, no API key needed
-- ⚙️ Settings for model (tiny/base/small/medium), language, device
-- 🌍 Multi-language support with auto-detection
-
-**Why use the GUI?**
-- No Groq API key required (uses local Whisper)
-- Works completely offline after model download
-- Visual feedback and easy editing
-- Great for focused transcription sessions
-
-**Note:** Models auto-download on first use. Choose `tiny` for speed, `medium` for accuracy.
-
 ## 📖 Documentation
 
 ### Getting Started
@@ -87,8 +57,6 @@ python -m dictapilot_gui
 - **[FAQ](docs/faq.md)** - Frequently asked questions
 
 ### Platform Guides
-- **[Linux Setup](docs/platform-guides/linux.md)** - X11/Wayland, backends, permissions
-- **[macOS Setup](docs/platform-guides/macos.md)** - Accessibility, Keychain, backends
 - **[Windows Setup](docs/platform-guides/windows.md)** - Permissions, backends, troubleshooting
 
 ### For Developers
@@ -158,21 +126,11 @@ python app.py --export file.txt   # Export to text file
 ## 🐛 Troubleshooting
 
 **Hotkey not working?**
-- Linux (X11): Try `HOTKEY_BACKEND=x11`
-- Linux (Wayland): Try `HOTKEY_BACKEND=wayland` or `HOTKEY_BACKEND=pynput`
-- macOS: Grant Accessibility permission
-- Windows: Try running as administrator
+- Try running as administrator
+- Try `HOTKEY_BACKEND=pynput`
 
 **Text not pasting?**
-- Linux (X11): Install xdotool: `sudo apt install xdotool`
-- Linux (Wayland): Install wl-clipboard: `sudo apt install wl-clipboard wtype`
-- macOS: Use `PASTE_BACKEND=osascript`
-- Windows: Try `PASTE_BACKEND=pynput`
-
-**Check Wayland dependencies:**
-```bash
-python app.py --wayland-deps
-```
+- Try `PASTE_BACKEND=pynput`
 
 **More help:** [Troubleshooting Guide](docs/troubleshooting.md)
 
@@ -181,7 +139,6 @@ python app.py --wayland-deps
 **Phase 1 - Critical Foundations:**
 - ✅ Improved documentation (in progress)
 - ✅ Real-time streaming transcription
-- ✅ Wayland support for Linux
 - ✅ Modern GUI dashboard with local transcription
 
 **Phase 2 - Competitive Advantages:**
@@ -206,9 +163,6 @@ We welcome contributions! See [Contributing Guide](docs/developer/contributing.m
 ## 📦 Building Packages
 
 ```bash
-./packaging/build_linux.sh        # Linux AppImage
-./packaging/build_deb.sh          # Debian package
-./packaging/build_macos.sh        # macOS bundle
 .\packaging\build_windows.ps1     # Windows installer
 ```
 
@@ -269,9 +223,8 @@ We welcome contributions! See [Contributing Guide](docs/developer/contributing.m
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `HOTKEY_BACKEND` | `auto` | Hotkey backend: `auto`, `keyboard`, `pynput`, `x11`, `wayland` |
-| `PASTE_BACKEND` | `auto` | Paste backend: `auto`, `keyboard`, `pynput`, `xdotool`, `x11`, `wayland`, `osascript` |
-| `DISPLAY_SERVER` | `auto` | Display server override: `auto`, `x11`, `wayland` |
+| `HOTKEY_BACKEND` | `auto` | Hotkey backend: `auto`, `keyboard`, `pynput` |
+| `PASTE_BACKEND` | `auto` | Paste backend: `auto`, `keyboard`, `pynput` |
 
 ### Advanced Settings
 
@@ -286,10 +239,10 @@ We welcome contributions! See [Contributing Guide](docs/developer/contributing.m
 
 ## 📂 Storage Locations
 
-| Data | Linux/macOS | Windows |
-|------|-------------|---------|
-| Transcriptions | `~/.local/share/dictapilot/` | `%APPDATA%\DictaPilot\` |
-| Configuration | `~/.config/dictapilot/` | `%APPDATA%\DictaPilot\` |
+| Data | Windows |
+|------|---------|
+| Transcriptions | `%APPDATA%\DictaPilot\` |
+| Configuration | `%APPDATA%\DictaPilot\` |
 
 ## 📄 License
 

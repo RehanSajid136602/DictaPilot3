@@ -1,3 +1,4 @@
+# Core runtime dependencies for DictaPilot3 (Windows)
 groq
 sounddevice
 soundfile
@@ -8,8 +9,3 @@ python-dotenv
 pynput
 Pillow
 PySide6
-pyinstaller
-fastapi
-uvicorn
-python-multipart
-websockets

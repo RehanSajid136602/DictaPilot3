@@ -82,9 +82,6 @@ DEFAULT_CONFIG = {
     "cleanup_strictness": "balanced",  # "conservative", "balanced", "aggressive"
     "user_adaptation": True,
     "confidence_threshold": 0.65,
-    # Wayland-specific settings
-    "display_server": "auto",  # "auto", "wayland", "x11"
-    "wayland_compositor": "auto",  # "auto", "gnome", "kde", "sway"
     # Streaming settings
     "streaming_enabled": True,
     "streaming_chunk_duration": 0.1,
@@ -151,9 +148,6 @@ class DictaPilotConfig:
     cleanup_strictness: str = "balanced"
     user_adaptation: bool = True
     confidence_threshold: float = 0.65
-    # Wayland-specific settings
-    display_server: str = "auto"  # "auto", "wayland", "x11"
-    wayland_compositor: str = "auto"  # "auto", "gnome", "kde", "sway"
     # Streaming settings
     streaming_enabled: bool = True
     streaming_chunk_duration: float = 0.1
@@ -257,9 +251,6 @@ def load_config() -> DictaPilotConfig:
         "CLEANUP_STRICTNESS": os.getenv("CLEANUP_STRICTNESS"),
         "USER_ADAPTATION": os.getenv("USER_ADAPTATION"),
         "CONFIDENCE_THRESHOLD": os.getenv("CONFIDENCE_THRESHOLD"),
-        # Wayland-specific settings
-        "DISPLAY_SERVER": os.getenv("DISPLAY_SERVER"),
-        "WAYLAND_COMPOSITOR": os.getenv("WAYLAND_COMPOSITOR"),
         # Streaming transcription settings
         "STREAMING_ENABLED": os.getenv("STREAMING_ENABLED"),
         "STREAMING_CHUNK_DURATION": os.getenv("STREAMING_CHUNK_DURATION"),
@@ -359,13 +350,6 @@ def load_config() -> DictaPilotConfig:
                     config.confidence_threshold = float(value)
                 except ValueError:
                     pass
-            # Wayland-specific settings
-            elif key == "DISPLAY_SERVER":
-                if value.lower() in ("wayland", "x11", "auto"):
-                    config.display_server = value.lower()
-            elif key == "WAYLAND_COMPOSITOR":
-                if value.lower() in ("auto", "gnome", "kde", "sway"):
-                    config.wayland_compositor = value.lower()
             # Spec mode settings
             elif key == "SPEC_MODE_ENABLED":
                 config.spec_mode_enabled = value.lower() in ("1", "true", "yes")
@@ -488,9 +472,6 @@ def apply_config_to_env(config: DictaPilotConfig) -> None:
     os.environ["CLEANUP_STRICTNESS"] = config.cleanup_strictness
     os.environ["USER_ADAPTATION"] = "1" if config.user_adaptation else "0"
     os.environ["CONFIDENCE_THRESHOLD"] = str(config.confidence_threshold)
-    # Wayland-specific settings
-    os.environ["DISPLAY_SERVER"] = config.display_server
-    os.environ["WAYLAND_COMPOSITOR"] = config.wayland_compositor
     # Spec mode settings
     os.environ["SPEC_MODE_ENABLED"] = "1" if config.spec_mode_enabled else "0"
     os.environ["SPEC_TEMPLATE"] = config.spec_template

@@ -15,9 +15,7 @@ https://www.python.org/downloads/
 -------------------
 From the project root, run:
 
-  Windows: setup\setup_windows.bat
-  Linux:   ./setup/setup_linux.sh
-  macOS:   ./setup/setup_macos.command
+  setup\setup_windows.bat
 
 This creates `venv`, installs dependencies, and creates `.env` from `.env.example`.
 
@@ -44,16 +42,12 @@ Then:
 After setup, you can use:
 
   portable-start/start_windows.bat
-  portable-start/start_linux.sh
-  portable-start/start_macos.command
 
 6) OPTIONAL: START AT LOGIN
 ---------------------------
 Use:
 
   auto_start/autostart_windows.bat
-  auto_start/autostart_linux.sh
-  auto_start/autostart_macos.command
 
 TROUBLESHOOTING
 ---------------

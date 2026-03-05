@@ -84,12 +84,7 @@ if not SETUP_COMPLETED and "--no-wizard" not in sys.argv:
         print("Continuing with manual setup.")
 
 from paste_utils import paste_text
-from display_server import (
-    detect_display_server,
-    is_wayland,
-    is_x11,
-    get_display_server_info,
-)
+
 from smart_editor import (
     TranscriptState,
     smart_update_state,
@@ -691,41 +686,7 @@ class HotkeyManager:
 
         self._stop = _stop
 
-    def _try_start_x11(self):
-        from x11_backend import X11HotkeyListener
 
-        listener = X11HotkeyListener(
-            hotkey=self.hotkey,
-            on_press=lambda: self._handle_press(),
-            on_release=lambda: self._handle_release(),
-        )
-        listener.start()
-
-        def _stop():
-            try:
-                listener.stop()
-            except Exception:
-                pass
-
-        self._stop = _stop
-
-    def _try_start_wayland(self):
-        """Start hotkey listener using Wayland backend (pynput fallback for now)."""
-        from wayland_backend import WaylandHotkeyBackend, has_portal, has_pynput
-
-        # For now, use pynput on Wayland as portal integration requires
-        # more complex async handling
-        if has_pynput():
-            self._try_start_pynput()
-            return
-
-        if not has_portal() and not has_pynput():
-            raise RuntimeError(
-                "Neither PyGObject (portal) nor pynput available for Wayland hotkey backend"
-            )
-
-        # Fall back to pynput
-        self._try_start_pynput()
 
     def _handle_press(self):
         if self._pressed:
@@ -742,18 +703,7 @@ class HotkeyManager:
     def start(self):
         order = []
         if self.backend == "auto":
-            # Detect display server and select appropriate backend
-            display_server = detect_display_server()
-            if display_server == "wayland":
-                # On Wayland: prefer pynput (portal needs more work)
-                order = ["pynput"]
-            elif sys.platform.startswith("linux"):
-                # Linux X11: prefer X11 native, then pynput
-                order = ["x11", "pynput"]
-            elif sys.platform == "darwin":
-                order = ["pynput", "keyboard"]
-            else:
-                order = ["keyboard", "pynput"]
+            order = ["keyboard", "pynput"]
         else:
             order = [self.backend]
 
@@ -764,10 +714,6 @@ class HotkeyManager:
                     self._try_start_keyboard()
                 elif candidate == "pynput":
                     self._try_start_pynput()
-                elif candidate == "x11":
-                    self._try_start_x11()
-                elif candidate == "wayland":
-                    self._try_start_wayland()
                 else:
                     raise ValueError(f"Unsupported hotkey backend '{candidate}'")
                 self.active_backend = candidate
@@ -2482,36 +2428,8 @@ def main():
         print("License: MIT (see LICENSE file)")
         print("")
         
-        # Display server detection
-        display_server = detect_display_server()
-        print(f"Display server: {display_server}")
-        if display_server == "wayland":
-            print("Running on Wayland - using pynput backend for hotkeys")
-            # Check Wayland dependencies
-            try:
-                from wayland_backend import (
-                    get_wayland_dependencies_status,
-                    print_wayland_setup_instructions,
-                )
-
-                deps = get_wayland_dependencies_status()
-                missing = [
-                    k
-                    for k, v in deps.items()
-                    if not v and k in ("wl_clipboard", "pynput")
-                ]
-                if missing:
-                    print("")
-                    print("Warning: Some Wayland dependencies are missing:")
-                    for dep in missing:
-                        print(f"  - {dep}")
-                    print("Run with --wayland-deps for installation instructions.")
-            except ImportError:
-                pass
-        elif display_server == "x11":
-            print("Running on X11 - using native X11 backend")
-        else:
-            print("Display server unknown - using fallback backends")
+        # Simple OS platform display
+        print(f"Platform: {platform.system()} {platform.release()}")
         print("")
 
         print(f"Hold '{hotkey}' to record; release to send audio for transcription.")

@@ -69,31 +69,6 @@ You should see:
 
 **Verification:** Check that the app is running without errors.
 
-## Step 3.5: Use DictaPilot GUI (Alternative)
-
-For a modern desktop GUI experience with local transcription, use the DictaPilot GUI:
-
-**Install GUI dependencies:**
-```bash
-pip install faster-whisper sounddevice soundfile
-```
-
-**Run the GUI:**
-```bash
-python -m dictapilot_gui
-```
-
-The GUI provides:
-- Large transcription text area with copy/save
-- One-click record button with visual feedback
-- Local transcription using faster-whisper (no API key needed!)
-- Settings for model size, language, and device (CPU/CUDA)
-- Modern WhisperFlow-inspired design
-
-**Note:** The GUI uses local Whisper models which download automatically on first use. Choose tiny/base for speed, small/medium for accuracy.
-
-**Verification:** The GUI window should open with a welcome message and Record button.
-
 ## Step 4: Configure Hotkey (Optional)
 
 The default hotkey is `F9`. To change it, edit `.env`:
