@@ -1,8 +1,9 @@
-import { app, BrowserWindow, Menu, Tray, nativeImage, ipcMain, globalShortcut, screen, session } from 'electron';
+import { app, BrowserWindow, Menu, Tray, nativeImage, ipcMain, globalShortcut, screen, session, clipboard } from 'electron';
 import * as path from 'path';
 import * as dotenv from 'dotenv';
 import { Channels, IpcResponse } from 'dictapilot-desktop-shared';
 import { audioService, transcriptionService, settingsService, historyService, editingService, GroqProvider } from 'dictapilot-desktop-backend';
+import { keyboard, Key } from '@nut-tree-fork/nut-js';
 import Store from 'electron-store';
 import { GlobalKeyboardListener } from 'node-global-key-listener';
 
@@ -53,16 +54,16 @@ async function handleStopDictation() {
     isRecording = false;
     console.log('Main IPC: Stop dictation requested');
     audioService.stop();
-    
+
     safeSend(mainWindow, Channels.OnStateChange, { state: 'processing' });
     safeSend(widgetWindow, Channels.OnStateChange, { state: 'processing' });
-    
+
     try {
         const finalRawText = await transcriptionService.stop();
         if (finalRawText) {
             console.log('Final transcription received, applying smart edit...');
             const finalCleanText = await editingService.processSmart(finalRawText);
-            
+
             safeSend(mainWindow, Channels.OnTranscriptionUpdate, {
                 text: finalCleanText,
                 isFinal: true
@@ -72,11 +73,25 @@ async function handleStopDictation() {
                 isFinal: true
             });
             historyService.saveResult(finalCleanText);
+
+            // Auto paste
+            clipboard.writeText(finalCleanText);
+            try {
+                // Return focus to the active window before pasting
+                if (mainWindow && Reflect.has(mainWindow, 'restoreFocus')) {
+                    // Try some electron trick if possible, usually windows manages this if we don't steal focus.
+                }
+                setTimeout(async () => {
+                    await keyboard.type(Key.LeftControl, Key.V);
+                }, 100); // small delay to ensure clipboard is ready
+            } catch (err) {
+                console.error('Auto-paste failed:', err);
+            }
         }
     } catch (e) {
         console.error(e);
     }
-    
+
     safeSend(mainWindow, Channels.OnStateChange, { state: 'idle' });
     safeSend(widgetWindow, Channels.OnStateChange, { state: 'idle' });
 }
@@ -106,7 +121,7 @@ function createWindow() {
 
     mainWindow.once('ready-to-show', () => {
         mainWindow?.show();
-        mainWindow?.webContents.openDevTools({ mode: 'detach' });
+        // mainWindow?.webContents.openDevTools({ mode: 'detach' });
     });
 
     mainWindow.on('close', (event) => {
@@ -130,10 +145,10 @@ function createWindow() {
 function createWidgetWindow() {
     const primaryDisplay = screen.getPrimaryDisplay();
     const { width, height } = primaryDisplay.workAreaSize;
-    
+
     const widgetWidth = 180;
     const widgetHeight = 44;
-    
+
     widgetWindow = new BrowserWindow({
         width: widgetWidth,
         height: widgetHeight,
@@ -166,7 +181,7 @@ function createWidgetWindow() {
 
 function registerHotkeys() {
     currentHotkey = (store.get('settings.hotkey') as string) || 'F9';
-    
+
     if (!keyListener) {
         keyListener = new GlobalKeyboardListener();
         keyListener.addListener((e) => {
@@ -263,13 +278,13 @@ function registerIpcHandlers() {
         // Calculate amplitude (RMS of Int16 PCM)
         let sumSq = 0;
         const count = buf.length / 2;
-        for(let i = 0; i < buf.length; i += 2) {
+        for (let i = 0; i < buf.length; i += 2) {
             const val = buf.readInt16LE(i);
             const norm = val / 32768.0;
             sumSq += norm * norm;
         }
         const rms = count > 0 ? Math.sqrt(sumSq / count) : 0;
-        
+
         safeSend(mainWindow, Channels.OnAmplitudeUpdate, rms);
         safeSend(widgetWindow, Channels.OnAmplitudeUpdate, rms);
     });

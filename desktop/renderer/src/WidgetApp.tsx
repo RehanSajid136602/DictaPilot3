@@ -19,16 +19,15 @@ function WidgetApp() {
     if (window.dictationAPI) {
       // @ts-ignore
       const unsubState = window.dictationAPI.onStateChange((data: any) => {
-        console.log("Widget received state change:", data);
         setDictationState(data.state);
       });
 
       // @ts-ignore
       const unsubAmp = window.dictationAPI.onAmplitudeUpdate((amp: number) => {
-          if (stateRef.current === 'recording') {
-              // Smooth out and boost amplitude for visual effect
-              setAmplitude(Math.min(1.0, Math.max(0.1, amp * 5.0)));
-          }
+        if (stateRef.current === 'recording') {
+          // Smooth out and boost amplitude for visual effect
+          setAmplitude(Math.min(1.0, Math.max(0.1, amp * 5.0)));
+        }
       });
 
       return () => {
@@ -43,24 +42,24 @@ function WidgetApp() {
   return (
     <div className={cn("widget-container", dictationState)}>
       {bars.map((_, i) => {
-          // simple arch curve
-          const centerDist = Math.abs(i - 5) / 5;
-          const arch = 1.0 - Math.pow(centerDist, 1.5) * 0.5;
-          
-          let height = 4;
-          if (dictationState === 'recording') {
-              height = 4 + (amplitude * 20 * arch);
-          } else if (dictationState === 'processing') {
-              height = 4 + (Math.sin(Date.now() / 200 + i) * 10 * arch);
-          }
+        // simple arch curve
+        const centerDist = Math.abs(i - 5) / 5;
+        const arch = 1.0 - Math.pow(centerDist, 1.5) * 0.5;
 
-          return (
-              <div 
-                  key={i} 
-                  className="bar"
-                  style={{ height: `${Math.max(4, height)}px` }}
-              />
-          );
+        let height = 4;
+        if (dictationState === 'recording') {
+          height = 4 + (amplitude * 20 * arch);
+        } else if (dictationState === 'processing') {
+          height = 4 + (Math.sin(Date.now() / 200 + i) * 10 * arch);
+        }
+
+        return (
+          <div
+            key={i}
+            className="bar"
+            style={{ height: `${Math.max(4, height)}px` }}
+          />
+        );
       })}
     </div>
   );
