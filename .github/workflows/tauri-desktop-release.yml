@@ -1,0 +1,41 @@
+name: tauri-desktop-release
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "tauri-desktop/**"
+
+jobs:
+  windows-bundle:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: tauri-desktop
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build bundle
+        run: npm run bundle
+
+      - name: Smoke check bundle output
+        run: node scripts/smoke-test.mjs
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: tauri-windows-bundle
+          path: |
+            tauri-desktop/src-tauri/target/release/bundle/**

@@ -1,0 +1,43 @@
+.widget-container {
+    width: 100vw;
+    height: 100vh;
+    background: rgba(15, 15, 16, 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    -webkit-app-region: drag;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    box-sizing: border-box;
+}
+
+.widget-container.recording {
+    background: rgba(20, 24, 20, 0.9);
+    border-color: rgba(0, 240, 255, 0.4);
+    box-shadow: 0 0 20px rgba(0, 240, 255, 0.1);
+}
+
+.widget-container.processing {
+    border-color: rgba(245, 158, 11, 0.4);
+}
+
+.bar {
+    width: 4px;
+    background: rgba(255, 255, 255, 0.4);
+    border-radius: 2px;
+    transition: height 0.1s ease;
+}
+
+.widget-container.recording .bar {
+    background: #00f0ff;
+    box-shadow: 0 0 8px #00f0ff;
+}
+
+.widget-container.processing .bar {
+    background: #f59e0b;
+}

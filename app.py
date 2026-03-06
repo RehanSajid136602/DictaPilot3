@@ -2406,12 +2406,12 @@ def _setup_dictation_pipeline(gui, recorder, processing_event, shutdown_event, c
 
 def main():
     """Main entry point for normal dictation mode (floating window only)."""
-    if not sys.stdout.isatty():
-        try:
-            sys.stdout = open(os.devnull, "w")
-            sys.stderr = open(os.devnull, "w")
-        except Exception:
-            pass
+    # if not sys.stdout.isatty():
+    #     try:
+    #         sys.stdout = open(os.devnull, "w")
+    #         sys.stderr = open(os.devnull, "w")
+    #     except Exception:
+    #         pass
     
     def print_banner(hotkey: str):
         banner = r"""
