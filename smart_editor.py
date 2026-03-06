@@ -1301,6 +1301,12 @@ def _llm_updated_transcript(
         except TypeError:
             request.pop("response_format", None)
             resp = client.chat.completions.create(**request)
+        except Exception as e:
+            if "json" in str(e).lower() or "format" in str(e).lower() or "400" in str(e):
+                request.pop("response_format", None)
+                resp = client.chat.completions.create(**request)
+            else:
+                raise e
         content = (resp.choices[0].message.content or "").strip()
     except Exception:
         return None

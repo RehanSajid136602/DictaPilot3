@@ -57,7 +57,7 @@ export class EditingService {
                     { role: 'system', content: SYSTEM_PROMPT },
                     { role: 'user', content: text }
                 ],
-                model: 'llama3-8b-8192',
+                model: 'openai/gpt-oss-120b',
                 temperature: 0.1,
                 max_tokens: 2048,
             });

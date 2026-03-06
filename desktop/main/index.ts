@@ -77,13 +77,19 @@ async function handleStopDictation() {
             // Auto paste
             clipboard.writeText(finalCleanText);
             try {
-                // Return focus to the active window before pasting
-                if (mainWindow && Reflect.has(mainWindow, 'restoreFocus')) {
-                    // Try some electron trick if possible, usually windows manages this if we don't steal focus.
+                // If DictaPilot itself is focused, the UI already displays the text, do not paste it.
+                if (mainWindow?.isFocused() || widgetWindow?.isFocused()) {
+                    console.log("DictaPilot is focused, skipping auto-paste to avoid double typing in our own UI.");
+                } else {
+                    // Return focus to the active window before pasting
+                    if (mainWindow && Reflect.has(mainWindow, 'restoreFocus')) {
+                        // Try some electron trick if possible, usually windows manages this if we don't steal focus.
+                    }
+                    setTimeout(async () => {
+                        await keyboard.pressKey(Key.LeftControl, Key.V);
+                        await keyboard.releaseKey(Key.LeftControl, Key.V);
+                    }, 100); // small delay to ensure clipboard is ready
                 }
-                setTimeout(async () => {
-                    await keyboard.type(Key.LeftControl, Key.V);
-                }, 100); // small delay to ensure clipboard is ready
             } catch (err) {
                 console.error('Auto-paste failed:', err);
             }
@@ -108,7 +114,7 @@ function createWindow() {
             preload: path.join(__dirname, '../../preload/dist/index.js'),
             nodeIntegration: false,
             contextIsolation: true,
-            sandbox: true
+            sandbox: false  // Must be explicit: Electron 20+ defaults sandbox to true, which breaks ipcRenderer in preload
         }
     });
 
@@ -164,7 +170,7 @@ function createWidgetWindow() {
             preload: path.join(__dirname, '../../preload/dist/index.js'),
             nodeIntegration: false,
             contextIsolation: true,
-            sandbox: true
+            sandbox: false  // Must be explicit: Electron 20+ defaults sandbox to true, which breaks ipcRenderer in preload
         }
     });
 

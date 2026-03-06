@@ -157,13 +157,13 @@ function App() {
       <main className={cn("main-stage", isSidebarOpen && "sidebar-open")}>
         {/* Header with Menu Toggle */}
         <header className="stage-header">
-          <button className="icon-btn" onClick={() => setIsSidebarOpen(true)}>
-            <Menu size={24} />
-          </button>
           <div className="status-indicator">
             <span className={cn('status-dot', dictationState)}></span>
             <span className="status-text">{dictationState}</span>
           </div>
+          <button className="icon-btn" onClick={() => setIsSidebarOpen(true)}>
+            <Menu size={24} />
+          </button>
         </header>
 
         {/* Center Stage: Input & Mic */}
