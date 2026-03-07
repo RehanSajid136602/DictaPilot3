@@ -3,6 +3,7 @@ import { randomUUID } from 'crypto';
 import * as path from 'path';
 import {
     DEFAULT_SYNC_PREFERENCES,
+    type DictationState,
     type DictationSessionResponse,
     Channels,
     type AuthState,
@@ -54,7 +55,7 @@ let widgetWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let keyListener: GlobalKeyboardListener | null = null;
 let currentHotkey = 'F9';
-let isRecording = false;
+let dictationLifecycleState: DictationState = 'idle';
 let isQuitting = false;
 let currentAuthState: AuthState = { ...LOADING_AUTH_STATE };
 let activeDictationSessionId: string | null = null;
@@ -96,6 +97,12 @@ function safeSend(window: BrowserWindow | null, channel: string, ...args: unknow
     if (window && !window.isDestroyed() && window.webContents) {
         window.webContents.send(channel, ...args);
     }
+}
+
+function publishDictationState(state: DictationState, sessionId: string | null): void {
+    dictationLifecycleState = state;
+    safeSend(mainWindow, Channels.OnStateChange, { state, sessionId });
+    safeSend(widgetWindow, Channels.OnStateChange, { state, sessionId });
 }
 
 function syncStatusFromCurrentState(overrides?: Partial<SyncPreferences>): SyncPreferences {
@@ -144,12 +151,10 @@ function syncAuthWindowAccess(): void {
 
 function resetActiveDictationSession(): void {
     const sessionId = activeDictationSessionId;
-    if (!sessionId && !isRecording) {
+    if (!sessionId && dictationLifecycleState === 'idle') {
         return;
     }
 
-    isRecording = false;
-    activeDictationSessionId = null;
     audioService.stop();
 
     if (sessionId) {
@@ -157,8 +162,8 @@ function resetActiveDictationSession(): void {
         textInsertionService.resetSession(sessionId);
     }
 
-    safeSend(mainWindow, Channels.OnStateChange, { state: 'idle', sessionId: null });
-    safeSend(widgetWindow, Channels.OnStateChange, { state: 'idle', sessionId: null });
+    activeDictationSessionId = null;
+    publishDictationState('idle', null);
 }
 
 function requireAuthenticatedAccess(message: string): boolean {
@@ -458,32 +463,31 @@ async function handleStartDictation() {
         return null;
     }
 
-    if (isRecording) {
+    if (dictationLifecycleState === 'recording') {
         return activeDictationSessionId;
     }
+    if (dictationLifecycleState === 'processing') {
+        return null;
+    }
+
     const sessionId = randomUUID();
-    isRecording = true;
     activeDictationSessionId = sessionId;
     audioService.start();
     transcriptionService.resetSession();
     editingService.resetSession();
     textInsertionService.beginSession(sessionId);
     transcriptionService.startSession(sessionId);
-    safeSend(mainWindow, Channels.OnStateChange, { state: 'recording', sessionId });
-    safeSend(widgetWindow, Channels.OnStateChange, { state: 'recording', sessionId });
+    publishDictationState('recording', sessionId);
     return sessionId;
 }
 
 async function handleStopDictation() {
-    if (!isRecording) {
+    if (dictationLifecycleState !== 'recording' || !activeDictationSessionId) {
         return;
     }
     const sessionId = activeDictationSessionId;
-    isRecording = false;
-    activeDictationSessionId = null;
     audioService.stop();
-    safeSend(mainWindow, Channels.OnStateChange, { state: 'processing', sessionId: sessionId ?? null });
-    safeSend(widgetWindow, Channels.OnStateChange, { state: 'processing', sessionId: sessionId ?? null });
+    publishDictationState('processing', sessionId);
 
     try {
         const finalRawText = sessionId ? await transcriptionService.stopSession(sessionId) : '';
@@ -515,10 +519,10 @@ async function handleStopDictation() {
             textInsertionService.abandonSession(sessionId);
         }
         console.error(error);
+    } finally {
+        activeDictationSessionId = null;
+        publishDictationState('idle', null);
     }
-
-    safeSend(mainWindow, Channels.OnStateChange, { state: 'idle', sessionId: null });
-    safeSend(widgetWindow, Channels.OnStateChange, { state: 'idle', sessionId: null });
 }
 
 function createWindow(): void {
@@ -615,9 +619,9 @@ function registerHotkeys(): void {
         keyListener = new GlobalKeyboardListener();
         keyListener.addListener((event) => {
             if (event.name === currentHotkey.toUpperCase()) {
-                if (event.state === 'DOWN' && !isRecording) {
+                if (event.state === 'DOWN' && dictationLifecycleState === 'idle') {
                     void handleStartDictation();
-                } else if (event.state === 'UP' && isRecording) {
+                } else if (event.state === 'UP' && dictationLifecycleState === 'recording') {
                     void handleStopDictation();
                 }
             }
@@ -702,12 +706,17 @@ function registerIpcHandlers(): void {
         if (!sessionId) {
             return {
                 success: false,
-                error: {
-                    code: currentAuthState.status === 'loading' ? 'auth_bootstrapping' : 'not_authenticated',
-                    message: currentAuthState.status === 'loading'
-                        ? 'DictaPilot is still restoring your session.'
-                        : 'Sign in or create an account to start dictation.',
-                },
+                error: dictationLifecycleState === 'processing'
+                    ? {
+                        code: 'dictation_processing',
+                        message: 'DictaPilot is still finalizing the previous dictation.',
+                    }
+                    : {
+                        code: currentAuthState.status === 'loading' ? 'auth_bootstrapping' : 'not_authenticated',
+                        message: currentAuthState.status === 'loading'
+                            ? 'DictaPilot is still restoring your session.'
+                            : 'Sign in or create an account to start dictation.',
+                    },
             };
         }
         return { success: true, data: { sessionId } };
@@ -904,7 +913,11 @@ function registerIpcHandlers(): void {
     });
 
     ipcMain.on(Channels.SendAudioData, (_, payload: { sessionId?: string; buffer: ArrayBuffer }) => {
-        if (!payload?.sessionId || payload.sessionId !== activeDictationSessionId) {
+        if (
+            dictationLifecycleState !== 'recording' ||
+            !payload?.sessionId ||
+            payload.sessionId !== activeDictationSessionId
+        ) {
             return;
         }
 

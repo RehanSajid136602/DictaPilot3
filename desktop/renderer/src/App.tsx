@@ -32,6 +32,11 @@ import {
   resolveDesktopAuthGateView,
   type AuthMode,
 } from '@shared/authFlow';
+import {
+  applyInternalEditorSessionTranscript,
+  captureInternalEditorSession,
+  type InternalEditorSessionSnapshot,
+} from '@shared/internalEditorSession';
 import type { AudioInputDeviceInfo } from '@shared/ipc';
 import {
   DESKTOP_SETTING_DEFINITIONS,
@@ -135,12 +140,16 @@ function App() {
   const [resolvedAudioInputId, setResolvedAudioInputId] = useState('default');
   const [microphoneNotice, setMicrophoneNotice] = useState<string | null>(null);
   const stateRef = useRef<DictationStatus>('idle');
+  const transcriptionRef = useRef('');
   const authStateRef = useRef<AuthState>({ ...LOADING_AUTH_STATE });
   const isAuthenticatedRef = useRef(false);
   const activeSessionIdRef = useRef<string | null>(null);
   const microphoneControllerRef = useRef<MicrophoneController | null>(null);
+  const transcriptionInputRef = useRef<HTMLTextAreaElement | null>(null);
+  const internalEditorSessionRef = useRef<InternalEditorSessionSnapshot | null>(null);
 
   stateRef.current = dictationState;
+  transcriptionRef.current = transcription;
 
   const isAuthenticated = isAuthenticatedState(authState);
   const authGateView = resolveDesktopAuthGateView(authState);
@@ -150,6 +159,52 @@ function App() {
   const setFeedback = (message: string | null, tone: FeedbackTone = 'error') => {
     setAuthFeedback(message);
     setAuthFeedbackTone(tone);
+  };
+
+  const resetInternalEditorSession = () => {
+    internalEditorSessionRef.current = null;
+  };
+
+  const captureInternalEditorSelection = (sessionId: string) => {
+    const textarea = transcriptionInputRef.current;
+    const currentValue = transcriptionRef.current;
+    const textareaFocused = Boolean(textarea && document.activeElement === textarea);
+
+    internalEditorSessionRef.current = captureInternalEditorSession(
+      sessionId,
+      currentValue,
+      textareaFocused ? textarea?.selectionStart : 0,
+      textareaFocused ? textarea?.selectionEnd : currentValue.length,
+    );
+
+    if (!textareaFocused) {
+      setTranscription('');
+    }
+  };
+
+  const applyInternalEditorTranscript = (sessionId: string | null | undefined, text: string) => {
+    if (!sessionId) {
+      setTranscription(text);
+      return;
+    }
+
+    const session = internalEditorSessionRef.current;
+    if (!session || session.sessionId !== sessionId) {
+      setTranscription(text);
+      return;
+    }
+
+    const next = applyInternalEditorSessionTranscript(session, text);
+    setTranscription(next.value);
+
+    requestAnimationFrame(() => {
+      const textarea = transcriptionInputRef.current;
+      if (!textarea || document.activeElement !== textarea) {
+        return;
+      }
+      textarea.selectionStart = next.selectionStart;
+      textarea.selectionEnd = next.selectionEnd;
+    });
   };
 
   const hydrateAppState = async () => {
@@ -199,7 +254,6 @@ function App() {
     }
 
     if (stateRef.current === 'idle') {
-      setTranscription('');
       setMicrophoneNotice(null);
       const response = await window.dictationAPI.startDictation();
       if (!response.success || !response.data?.sessionId) {
@@ -256,20 +310,29 @@ function App() {
       activeSessionIdRef.current = data.sessionId ?? activeSessionIdRef.current;
 
       if (data.state === 'recording') {
-        setTranscription('');
+        if (data.sessionId) {
+          // Anchor preview updates to the original selection so repeated transcript refreshes
+          // replace only this session's text instead of compounding older desktop content.
+          captureInternalEditorSelection(data.sessionId);
+        }
       }
 
       if (data.state === 'idle') {
         activeSessionIdRef.current = null;
+        resetInternalEditorSession();
         void hydrateAppState();
       }
     });
 
     const unsubTranscription = window.dictationAPI.onTranscriptionUpdate((data) => {
-      if (data.sessionId && activeSessionIdRef.current && data.sessionId !== activeSessionIdRef.current) {
+      if (
+        data.sessionId &&
+        data.sessionId !== activeSessionIdRef.current &&
+        data.sessionId !== internalEditorSessionRef.current?.sessionId
+      ) {
         return;
       }
-      setTranscription(data.text);
+      applyInternalEditorTranscript(data.sessionId, data.text);
       if (data.isFinal) {
         setTimeout(() => {
           void hydrateAppState();
@@ -655,6 +718,7 @@ function App() {
             <div className="center-stage">
               <div className="input-container glass">
                 <textarea
+                  ref={transcriptionInputRef}
                   className="transcription-input"
                   value={transcription}
                   onChange={(event) => setTranscription(event.target.value)}
