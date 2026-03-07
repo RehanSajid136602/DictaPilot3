@@ -12,31 +12,37 @@ export class GroqProvider extends EventEmitter implements TranscriptionProvider 
     private processInterval: NodeJS.Timeout | null = null;
     private tempFileCount = 0;
     private isProcessing = false;
+    private currentSessionId: string | null = null;
 
     constructor(apiKey: string) {
         super();
         this.groq = new Groq({ apiKey });
     }
 
-    start() {
+    startSession(sessionId: string) {
+        this.abortSession(this.currentSessionId || sessionId);
+        this.currentSessionId = sessionId;
         this.isRecording = true;
         this.audioBuffer = [];
         this.isProcessing = false;
         
         // Transcribe every 2 seconds to create a streaming effect
         this.processInterval = setInterval(() => {
-            if (!this.isProcessing) {
-                this.transcribeCurrentBuffer(false);
+            if (!this.isProcessing && this.currentSessionId === sessionId) {
+                void this.transcribeCurrentBuffer(sessionId, false);
             }
         }, 2000); 
     }
 
-    processAudioChunk(chunk: Buffer) {
-        if (!this.isRecording) return;
+    processAudioChunk(sessionId: string, chunk: Buffer) {
+        if (!this.isRecording || sessionId !== this.currentSessionId) return;
         this.audioBuffer.push(chunk);
     }
 
-    async stop(): Promise<string> {
+    async stopSession(sessionId: string): Promise<string> {
+        if (sessionId !== this.currentSessionId) {
+            return '';
+        }
         this.isRecording = false;
         if (this.processInterval) {
             clearInterval(this.processInterval);
@@ -45,8 +51,27 @@ export class GroqProvider extends EventEmitter implements TranscriptionProvider 
         
         // Wait a tiny bit for the last chunk
         await new Promise(resolve => setTimeout(resolve, 300));
-        
-        return await this.transcribeCurrentBuffer(true);
+
+        const result = await this.transcribeCurrentBuffer(sessionId, true);
+        if (this.currentSessionId === sessionId) {
+            this.currentSessionId = null;
+            this.audioBuffer = [];
+        }
+        return result;
+    }
+
+    abortSession(sessionId: string) {
+        if (!this.currentSessionId || sessionId !== this.currentSessionId) {
+            return;
+        }
+        this.isRecording = false;
+        if (this.processInterval) {
+            clearInterval(this.processInterval);
+            this.processInterval = null;
+        }
+        this.audioBuffer = [];
+        this.isProcessing = false;
+        this.currentSessionId = null;
     }
 
     private createWavHeader(dataLength: number, sampleRate: number = 16000, channels: number = 1, bitDepth: number = 16): Buffer {
@@ -67,7 +92,8 @@ export class GroqProvider extends EventEmitter implements TranscriptionProvider 
         return header;
     }
 
-    private async transcribeCurrentBuffer(isFinal: boolean): Promise<string> {
+    private async transcribeCurrentBuffer(sessionId: string, isFinal: boolean): Promise<string> {
+        if (sessionId !== this.currentSessionId || this.audioBuffer.length === 0) return "";
         if (this.audioBuffer.length === 0) return "";
 
         this.isProcessing = true;
@@ -94,7 +120,11 @@ export class GroqProvider extends EventEmitter implements TranscriptionProvider 
                 language: 'en',
             });
 
-            this.emit('transcription-update', { text: transcription.text, isFinal });
+            if (this.currentSessionId !== sessionId) {
+                return "";
+            }
+
+            this.emit('transcription-update', { sessionId, text: transcription.text, isFinal });
             return transcription.text;
         } catch (error) {
             console.error('Groq transcription error:', error);

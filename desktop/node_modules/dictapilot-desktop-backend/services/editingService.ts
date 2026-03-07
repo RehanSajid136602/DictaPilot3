@@ -17,6 +17,10 @@ Rules:
 `;
 
 export class EditingService {
+    resetSession(): void {
+        // Reserved for future session-aware smart edit state.
+    }
+
     // Basic synchronous heuristic processing for live preview
     process(text: string): string {
         let processed = text;

@@ -1,131 +1,474 @@
-import { app, BrowserWindow, Menu, Tray, nativeImage, ipcMain, globalShortcut, screen, session, clipboard } from 'electron';
+import { app, BrowserWindow, Menu, Tray, nativeImage, ipcMain, screen, session, clipboard } from 'electron';
+import { randomUUID } from 'crypto';
 import * as path from 'path';
-import * as dotenv from 'dotenv';
-import { Channels, IpcResponse } from 'dictapilot-desktop-shared';
-import { audioService, transcriptionService, settingsService, historyService, editingService, GroqProvider } from 'dictapilot-desktop-backend';
+import {
+    type DictationSessionResponse,
+    Channels,
+    type AuthState,
+    type IpcResponse,
+    type MainWindowStateEvent,
+    SIGNED_OUT_AUTH_STATE,
+    type SignInRequest,
+    type SignUpRequest,
+    type SyncPreferences,
+    type SyncPreferencesUpdateRequest,
+    loadDesktopEnv,
+} from 'dictapilot-desktop-shared';
+import {
+    accountProfileService,
+    authService,
+    AuthServiceError,
+    audioService,
+    cloudStoreService,
+    CloudStoreServiceError,
+    createQueueItem,
+    deviceService,
+    dictionaryRepository,
+    editingService,
+    historyService,
+    sessionService,
+    settingsRepository,
+    settingsService,
+    snippetRepository,
+    syncQueueService,
+    syncQueueStoreService,
+    textInsertionService,
+    transcriptionService,
+    GroqProvider,
+} from 'dictapilot-desktop-backend';
 import { keyboard, Key } from '@nut-tree-fork/nut-js';
 import Store from 'electron-store';
 import { GlobalKeyboardListener } from 'node-global-key-listener';
+import { startGoogleOAuthPkce } from './googleOAuthService';
 
-dotenv.config({ path: path.join(__dirname, '../../.env') });
+loadDesktopEnv();
+app.disableHardwareAcceleration();
 
-const store = new Store() as any;
+const store = new Store() as Store<Record<string, unknown>>;
+
 let mainWindow: BrowserWindow | null = null;
 let widgetWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
-
 let keyListener: GlobalKeyboardListener | null = null;
 let currentHotkey = 'F9';
 let isRecording = false;
+let isQuitting = false;
+let currentAuthState: AuthState = { ...SIGNED_OUT_AUTH_STATE };
+let activeDictationSessionId: string | null = null;
 
-// Initialize GroqProvider
-const groqApiKey = process.env.GROQ_API_KEY || '';
-if (groqApiKey) {
-    const groqProvider = new GroqProvider(groqApiKey);
-    transcriptionService.setProvider(groqProvider);
-} else {
-    console.warn('GROQ_API_KEY not found in .env');
+function getErrorCode(error: unknown, fallbackCode: string): string {
+    if (error instanceof AuthServiceError || error instanceof CloudStoreServiceError) {
+        return error.code;
+    }
+    if (error instanceof Error && error.name) {
+        return error.name;
+    }
+    return fallbackCode;
 }
 
-// Ensure single instance
-const gotTheLock = app.requestSingleInstanceLock();
-if (!gotTheLock) {
-    app.quit();
+function getErrorMessage(error: unknown, fallbackMessage: string): string {
+    return error instanceof Error && error.message ? error.message : fallbackMessage;
 }
 
-function safeSend(window: BrowserWindow | null, channel: string, ...args: any[]) {
+function isSessionInvalidError(error: unknown): boolean {
+    const code = getErrorCode(error, '');
+    return [
+        'session_invalid',
+        'invalid_refresh_token',
+        'INVALID_REFRESH_TOKEN',
+        'TOKEN_EXPIRED',
+        'INVALID_ID_TOKEN',
+        'USER_NOT_FOUND',
+    ].includes(code);
+}
+
+function isOfflineError(error: unknown): boolean {
+    if (!(error instanceof Error)) {
+        return false;
+    }
+    return /fetch failed|network|offline|timed out|enotfound|econnrefused/i.test(error.message);
+}
+
+function safeSend(window: BrowserWindow | null, channel: string, ...args: unknown[]): void {
     if (window && !window.isDestroyed() && window.webContents) {
         window.webContents.send(channel, ...args);
     }
 }
 
+function syncStatusFromCurrentState(overrides?: Partial<SyncPreferences>): SyncPreferences {
+    return {
+        enabled: currentAuthState.sync.enabled,
+        status: currentAuthState.sync.status,
+        pendingOperations: syncQueueStoreService.getPendingCount(),
+        lastSyncedAt: currentAuthState.sync.lastSyncedAt ?? null,
+        errorMessage: currentAuthState.sync.errorMessage ?? null,
+        ...overrides,
+    };
+}
+
+function publishAuthState(): void {
+    safeSend(mainWindow, Channels.OnAuthStateChange, currentAuthState);
+}
+
+function publishSyncStatus(): void {
+    safeSend(mainWindow, Channels.OnSyncStatusChange, currentAuthState.sync);
+}
+
+function setSyncStatus(overrides?: Partial<SyncPreferences>): void {
+    currentAuthState = {
+        ...currentAuthState,
+        sync: syncStatusFromCurrentState(overrides),
+    };
+    publishSyncStatus();
+    publishAuthState();
+}
+
+function setAuthState(next: AuthState): void {
+    currentAuthState = {
+        ...next,
+        sync: {
+            ...next.sync,
+            pendingOperations: syncQueueStoreService.getPendingCount(),
+        },
+    };
+    publishAuthState();
+    publishSyncStatus();
+}
+
+function configureRuntimeSettings(): void {
+    const settings = settingsService.getSettings();
+    currentHotkey = (settings.HOTKEY || 'F9').toUpperCase();
+
+    const groqApiKey = settings.GROQ_API_KEY || process.env.GROQ_API_KEY || '';
+    if (groqApiKey) {
+        transcriptionService.setProvider(new GroqProvider(groqApiKey));
+    } else {
+        transcriptionService.clearProvider();
+        console.warn('GROQ_API_KEY not found. Dictation will fall back until a key is available.');
+    }
+}
+
+async function pasteCommittedText(text: string): Promise<void> {
+    clipboard.writeText(text);
+
+    if (mainWindow?.isFocused() || widgetWindow?.isFocused()) {
+        textInsertionService.clearCommittedBaseline();
+        return;
+    }
+
+    await keyboard.pressKey(Key.LeftControl, Key.V);
+    await keyboard.releaseKey(Key.LeftControl, Key.V);
+}
+
+function queueLocalSnapshotForSync(): void {
+    const settingsRecord = settingsRepository.getLocal();
+    syncQueueStoreService.upsert(createQueueItem('settings', 'upsert', settingsRecord.id, settingsRecord, settingsRecord.metadata));
+
+    for (const record of snippetRepository.listLocal(true)) {
+        syncQueueStoreService.upsert(
+            createQueueItem(
+                'snippets',
+                record.metadata.deletedAt ? 'delete' : 'upsert',
+                record.id,
+                record.metadata.deletedAt ? null : record,
+                record.metadata,
+            )
+        );
+    }
+
+    for (const record of dictionaryRepository.listLocal(true)) {
+        syncQueueStoreService.upsert(
+            createQueueItem(
+                'dictionary',
+                record.metadata.deletedAt ? 'delete' : 'upsert',
+                record.id,
+                record.metadata.deletedAt ? null : record,
+                record.metadata,
+            )
+        );
+    }
+}
+
+async function forceSignedOutRecovery(message: string): Promise<AuthState> {
+    sessionService.clear();
+    syncQueueStoreService.clear();
+    accountProfileService.clearProfile();
+
+    const signedOut = authService.signOut();
+    const nextState: AuthState = {
+        ...signedOut,
+        errorMessage: message,
+        sync: {
+            ...signedOut.sync,
+            pendingOperations: 0,
+            status: 'disabled',
+            errorMessage: null,
+        },
+    };
+    setAuthState(nextState);
+    return nextState;
+}
+
+configureRuntimeSettings();
+
+const gotTheLock = app.requestSingleInstanceLock();
+if (!gotTheLock) {
+    app.quit();
+}
+
+function normalizeWindowBounds(bounds: { width: number; height: number; x?: number; y?: number }) {
+    const displays = screen.getAllDisplays();
+    const hasSavedPosition = typeof bounds.x === 'number' && typeof bounds.y === 'number';
+
+    if (hasSavedPosition) {
+        const visibleOnAnyDisplay = displays.some(({ workArea }) => {
+            const x = bounds.x as number;
+            const y = bounds.y as number;
+            return (
+                x < workArea.x + workArea.width &&
+                x + bounds.width > workArea.x &&
+                y < workArea.y + workArea.height &&
+                y + bounds.height > workArea.y
+            );
+        });
+
+        if (visibleOnAnyDisplay) {
+            return bounds;
+        }
+    }
+
+    const primaryWorkArea = screen.getPrimaryDisplay().workArea;
+    return {
+        width: Math.min(bounds.width, primaryWorkArea.width),
+        height: Math.min(bounds.height, primaryWorkArea.height),
+        x: Math.round(primaryWorkArea.x + (primaryWorkArea.width - bounds.width) / 2),
+        y: Math.round(primaryWorkArea.y + Math.max(24, (primaryWorkArea.height - bounds.height) / 2)),
+    };
+}
+
+function broadcastMainWindowState(): void {
+    const payload: MainWindowStateEvent = {
+        isMaximized: mainWindow?.isMaximized() ?? false,
+    };
+    safeSend(mainWindow, Channels.OnMainWindowStateChange, payload);
+}
+
+async function maybeSyncAuthenticatedState(): Promise<void> {
+    const session = authService.getCurrentSession();
+    if (!session || currentAuthState.status !== 'authenticated' || !currentAuthState.sync.enabled) {
+        return;
+    }
+
+    setSyncStatus({ status: 'syncing', errorMessage: null });
+
+    try {
+        await syncQueueService.hydrateFromCloud(session);
+        queueLocalSnapshotForSync();
+        const syncResult = await syncQueueService.syncNow(session);
+        const lastSyncedAt = syncResult.status === 'error'
+            ? currentAuthState.sync.lastSyncedAt ?? null
+            : new Date().toISOString();
+        const profile = accountProfileService.updateSync(true, syncResult.status, lastSyncedAt);
+
+        setAuthState({
+            status: 'authenticated',
+            user: profile ?? currentAuthState.user,
+            sync: syncStatusFromCurrentState({
+                enabled: true,
+                status: syncResult.status === 'error' ? 'error' : 'idle',
+                errorMessage: syncResult.errorMessage ?? null,
+                lastSyncedAt,
+            }),
+            errorMessage: null,
+        });
+    } catch (error) {
+        if (isSessionInvalidError(error)) {
+            await forceSignedOutRecovery('Your session expired. Sign in again to resume sync.');
+            return;
+        }
+
+        const offline = isOfflineError(error);
+        setSyncStatus({
+            status: offline ? 'offline' : 'error',
+            errorMessage: getErrorMessage(
+                error,
+                offline
+                    ? 'You appear to be offline. DictaPilot will keep changes local until sync can resume.'
+                    : 'Sync failed.',
+            ),
+        });
+    }
+}
+
+async function hydrateAuthenticatedState(): Promise<AuthState> {
+    const session = authService.getCurrentSession();
+    if (!session) {
+        const signedOut = { ...SIGNED_OUT_AUTH_STATE };
+        setAuthState(signedOut);
+        return signedOut;
+    }
+
+    try {
+        const localProfile = accountProfileService.getProfile();
+        const profile = await cloudStoreService.upsertProfile(session, localProfile?.syncEnabled ?? false);
+        accountProfileService.setProfile(profile);
+        await cloudStoreService.registerDevice(session, deviceService.getDeviceMetadata());
+
+        const nextState: AuthState = {
+            status: 'authenticated',
+            user: profile,
+            sync: {
+                enabled: profile.syncEnabled,
+                status: profile.syncEnabled ? 'idle' : 'disabled',
+                pendingOperations: syncQueueStoreService.getPendingCount(),
+                lastSyncedAt: profile.lastSyncedAt ?? null,
+                errorMessage: null,
+            },
+            errorMessage: null,
+        };
+
+        setAuthState(nextState);
+        if (profile.syncEnabled) {
+            await maybeSyncAuthenticatedState();
+        }
+        return currentAuthState;
+    } catch (error) {
+        if (isSessionInvalidError(error)) {
+            return forceSignedOutRecovery('Your session expired. Sign in again to resume sync.');
+        }
+
+        const fallbackProfile = accountProfileService.getProfile();
+        const fallbackState: AuthState = {
+            status: 'authenticated',
+            user: fallbackProfile ?? session.user,
+            sync: {
+                enabled: fallbackProfile?.syncEnabled ?? false,
+                status: 'error',
+                pendingOperations: syncQueueStoreService.getPendingCount(),
+                lastSyncedAt: fallbackProfile?.lastSyncedAt ?? null,
+                errorMessage: error instanceof Error ? error.message : 'Failed to load sync state.',
+            },
+            errorMessage: null,
+        };
+        setAuthState(fallbackState);
+        return fallbackState;
+    }
+}
+
+async function bootstrapAuthState(): Promise<void> {
+    const persisted = sessionService.load();
+    if (!persisted) {
+        accountProfileService.clearProfile();
+        setAuthState({ ...SIGNED_OUT_AUTH_STATE });
+        return;
+    }
+
+    const restored = await sessionService.restore();
+    if (!restored) {
+        await forceSignedOutRecovery('Your saved session is no longer valid. Sign in again to resume sync.');
+        return;
+    }
+
+    await hydrateAuthenticatedState();
+}
+
 async function handleStartDictation() {
-    if (isRecording) return;
+    if (isRecording) {
+        return activeDictationSessionId;
+    }
+    const sessionId = randomUUID();
     isRecording = true;
-    console.log('Main IPC: Start dictation requested');
+    activeDictationSessionId = sessionId;
     audioService.start();
-    transcriptionService.start();
-    safeSend(mainWindow, Channels.OnStateChange, { state: 'recording' });
-    safeSend(widgetWindow, Channels.OnStateChange, { state: 'recording' });
+    transcriptionService.resetSession();
+    editingService.resetSession();
+    textInsertionService.beginSession(sessionId);
+    transcriptionService.startSession(sessionId);
+    safeSend(mainWindow, Channels.OnStateChange, { state: 'recording', sessionId });
+    safeSend(widgetWindow, Channels.OnStateChange, { state: 'recording', sessionId });
+    return sessionId;
 }
 
 async function handleStopDictation() {
-    if (!isRecording) return;
+    if (!isRecording) {
+        return;
+    }
+    const sessionId = activeDictationSessionId;
     isRecording = false;
-    console.log('Main IPC: Stop dictation requested');
+    activeDictationSessionId = null;
     audioService.stop();
-
-    safeSend(mainWindow, Channels.OnStateChange, { state: 'processing' });
-    safeSend(widgetWindow, Channels.OnStateChange, { state: 'processing' });
+    safeSend(mainWindow, Channels.OnStateChange, { state: 'processing', sessionId: sessionId ?? null });
+    safeSend(widgetWindow, Channels.OnStateChange, { state: 'processing', sessionId: sessionId ?? null });
 
     try {
-        const finalRawText = await transcriptionService.stop();
-        if (finalRawText) {
-            console.log('Final transcription received, applying smart edit...');
+        const finalRawText = sessionId ? await transcriptionService.stopSession(sessionId) : '';
+        if (finalRawText && sessionId && textInsertionService.canCommit(sessionId)) {
             const finalCleanText = await editingService.processSmart(finalRawText);
-
+            const commit = textInsertionService.commit(sessionId, finalCleanText);
             safeSend(mainWindow, Channels.OnTranscriptionUpdate, {
                 text: finalCleanText,
-                isFinal: true
+                isFinal: true,
+                sessionId,
             });
             safeSend(widgetWindow, Channels.OnTranscriptionUpdate, {
                 text: finalCleanText,
-                isFinal: true
+                isFinal: true,
+                sessionId,
             });
             historyService.saveResult(finalCleanText);
-
-            // Auto paste
-            clipboard.writeText(finalCleanText);
-            try {
-                // Return focus to the active window before pasting
-                if (mainWindow && Reflect.has(mainWindow, 'restoreFocus')) {
-                    // Try some electron trick if possible, usually windows manages this if we don't steal focus.
-                }
-                setTimeout(async () => {
-                    await keyboard.type(Key.LeftControl, Key.V);
-                }, 100); // small delay to ensure clipboard is ready
-            } catch (err) {
-                console.error('Auto-paste failed:', err);
+            if (commit) {
+                setTimeout(() => {
+                    void pasteCommittedText(commit.text);
+                }, 100);
             }
+        } else if (sessionId) {
+            textInsertionService.abandonSession(sessionId);
         }
-    } catch (e) {
-        console.error(e);
+    } catch (error) {
+        if (sessionId) {
+            transcriptionService.abortSession(sessionId);
+            textInsertionService.abandonSession(sessionId);
+        }
+        console.error(error);
     }
 
-    safeSend(mainWindow, Channels.OnStateChange, { state: 'idle' });
-    safeSend(widgetWindow, Channels.OnStateChange, { state: 'idle' });
+    safeSend(mainWindow, Channels.OnStateChange, { state: 'idle', sessionId: null });
+    safeSend(widgetWindow, Channels.OnStateChange, { state: 'idle', sessionId: null });
 }
 
-function createWindow() {
-    const bounds = store.get('windowBounds', { width: 600, height: 800 }) as { width: number, height: number, x?: number, y?: number };
+function createWindow(): void {
+    const savedBounds = store.get('windowBounds', { width: 600, height: 800 }) as { width: number; height: number; x?: number; y?: number };
+    const bounds = normalizeWindowBounds(savedBounds);
 
     mainWindow = new BrowserWindow({
         ...bounds,
         show: false,
         frame: false,
-        transparent: true,
+        backgroundColor: '#050505',
         webPreferences: {
             preload: path.join(__dirname, '../../preload/dist/index.js'),
             nodeIntegration: false,
             contextIsolation: true,
-            sandbox: true
-        }
+            sandbox: false,
+        },
     });
 
-    // Load the Vite dev server URL or the local index.html
     if (!app.isPackaged) {
-        mainWindow.loadURL((process.env.VITE_DEV_SERVER_URL || 'http://localhost:5174'));
+        void mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL || 'http://localhost:5174');
     } else {
-        mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
+        void mainWindow.loadFile(path.join(__dirname, '../../renderer/dist/index.html'));
     }
 
     mainWindow.once('ready-to-show', () => {
         mainWindow?.show();
-        // mainWindow?.webContents.openDevTools({ mode: 'detach' });
+        mainWindow?.focus();
+        mainWindow?.moveTop();
+        broadcastMainWindowState();
+        publishAuthState();
+        publishSyncStatus();
     });
 
     mainWindow.on('close', (event) => {
-        // Hide to tray instead of quitting if we arent explicitly quitting
         if (!isQuitting) {
             event.preventDefault();
             mainWindow?.hide();
@@ -140,23 +483,24 @@ function createWindow() {
 
     mainWindow.on('resize', saveBounds);
     mainWindow.on('moved', saveBounds);
+    mainWindow.on('maximize', broadcastMainWindowState);
+    mainWindow.on('unmaximize', broadcastMainWindowState);
 }
 
-function createWidgetWindow() {
+function createWidgetWindow(): void {
     const primaryDisplay = screen.getPrimaryDisplay();
-    const { width, height } = primaryDisplay.workAreaSize;
-
+    const { x, y, width } = primaryDisplay.workArea;
     const widgetWidth = 180;
     const widgetHeight = 44;
 
     widgetWindow = new BrowserWindow({
         width: widgetWidth,
         height: widgetHeight,
-        x: (width - widgetWidth) / 2,
-        y: height - widgetHeight - 40,
+        x: Math.round(x + (width - widgetWidth) / 2),
+        y: y + 24,
         show: false,
         frame: false,
-        transparent: true,
+        backgroundColor: '#101214',
         alwaysOnTop: true,
         skipTaskbar: true,
         resizable: false,
@@ -164,88 +508,107 @@ function createWidgetWindow() {
             preload: path.join(__dirname, '../../preload/dist/index.js'),
             nodeIntegration: false,
             contextIsolation: true,
-            sandbox: true
-        }
+            sandbox: false,
+        },
     });
 
     if (!app.isPackaged) {
-        widgetWindow.loadURL((process.env.VITE_DEV_SERVER_URL || 'http://localhost:5174') + '#widget');
+        void widgetWindow.loadURL(`${process.env.VITE_DEV_SERVER_URL || 'http://localhost:5174'}#widget`);
     } else {
-        widgetWindow.loadFile(path.join(__dirname, '../renderer/index.html'), { hash: 'widget' });
+        void widgetWindow.loadFile(path.join(__dirname, '../../renderer/dist/index.html'), { hash: 'widget' });
     }
 
     widgetWindow.once('ready-to-show', () => {
-        widgetWindow?.show();
+        widgetWindow?.showInactive();
     });
 }
 
-function registerHotkeys() {
-    currentHotkey = (store.get('settings.hotkey') as string) || 'F9';
+function registerHotkeys(): void {
+    currentHotkey = (settingsService.getSettings().HOTKEY || 'F9').toUpperCase();
 
     if (!keyListener) {
         keyListener = new GlobalKeyboardListener();
-        keyListener.addListener((e) => {
-            if (e.name === currentHotkey.toUpperCase()) {
-                if (e.state === 'DOWN' && !isRecording) {
-                    handleStartDictation();
-                } else if (e.state === 'UP' && isRecording) {
-                    handleStopDictation();
+        keyListener.addListener((event) => {
+            if (event.name === currentHotkey.toUpperCase()) {
+                if (event.state === 'DOWN' && !isRecording) {
+                    void handleStartDictation();
+                } else if (event.state === 'UP' && isRecording) {
+                    void handleStopDictation();
                 }
             }
         });
     }
 }
 
-function createTray() {
-    // Use a blank icon for now, ideally read from assets
+function createTray(): void {
     const icon = nativeImage.createEmpty();
     tray = new Tray(icon);
 
     const contextMenu = Menu.buildFromTemplate([
         { label: 'DictaPilot', enabled: false },
         { type: 'separator' },
-        { label: 'Show Dashboard', click: () => mainWindow?.show() },
+        {
+            label: 'Show Dashboard',
+            click: () => {
+                mainWindow?.show();
+                mainWindow?.focus();
+                mainWindow?.moveTop();
+            },
+        },
+        {
+            label: 'Show Widget',
+            click: () => widgetWindow?.showInactive(),
+        },
         { type: 'separator' },
         {
-            label: 'Quit DictaPilot', click: () => {
+            label: 'Quit DictaPilot',
+            click: () => {
                 isQuitting = true;
                 app.quit();
-            }
-        }
+            },
+        },
     ]);
 
     tray.setToolTip('DictaPilot Dictation Engine');
     tray.setContextMenu(contextMenu);
     tray.on('click', () => {
-        mainWindow?.isVisible() ? mainWindow.hide() : mainWindow?.show();
+        if (!mainWindow) {
+            return;
+        }
+        if (mainWindow.isVisible()) {
+            mainWindow.hide();
+            return;
+        }
+        mainWindow.show();
+        mainWindow.focus();
+        mainWindow.moveTop();
     });
 }
 
-function registerAutoUpdateHandlers() {
-    // Stub for future auto-update logic with electron-updater
-    console.log('Main: Auto-update handlers registered');
-}
-
-function registerIpcHandlers() {
-    // Listen for backend updates
+function registerIpcHandlers(): void {
     transcriptionService.on('transcription-update', (data) => {
+        if (data.sessionId !== activeDictationSessionId && !data.isFinal) {
+            return;
+        }
         const processed = editingService.process(data.text);
         safeSend(mainWindow, Channels.OnTranscriptionUpdate, {
             text: processed,
-            isFinal: data.isFinal
+            isFinal: data.isFinal,
+            sessionId: data.sessionId,
         });
         safeSend(widgetWindow, Channels.OnTranscriptionUpdate, {
             text: processed,
-            isFinal: data.isFinal
+            isFinal: data.isFinal,
+            sessionId: data.sessionId,
         });
         if (data.isFinal) {
             historyService.saveResult(processed);
         }
     });
 
-    ipcMain.handle(Channels.StartDictation, async (): Promise<IpcResponse> => {
-        await handleStartDictation();
-        return { success: true };
+    ipcMain.handle(Channels.StartDictation, async (): Promise<DictationSessionResponse> => {
+        const sessionId = await handleStartDictation();
+        return { success: true, data: sessionId ? { sessionId } : undefined };
     });
 
     ipcMain.handle(Channels.StopDictation, async (): Promise<IpcResponse> => {
@@ -253,56 +616,214 @@ function registerIpcHandlers() {
         return { success: true };
     });
 
-    ipcMain.handle(Channels.UpdateSettings, async (_, settings: any): Promise<IpcResponse> => {
-        console.log('Main IPC: Settings update', settings);
-        settingsService.updateSettings(settings);
-        if (settings.hotkey) {
-            store.set('settings.hotkey', settings.hotkey);
-            currentHotkey = settings.hotkey;
+    ipcMain.handle(Channels.GetSettings, async (): Promise<IpcResponse<Record<string, string>>> => ({
+        success: true,
+        data: settingsService.getSettings(),
+    }));
+
+    ipcMain.handle(Channels.UpdateSettings, async (_, settings: Partial<Record<string, string>>): Promise<IpcResponse<Record<string, string>>> => {
+        const record = settingsRepository.updateLocal(settings);
+        configureRuntimeSettings();
+        void maybeSyncAuthenticatedState();
+        return { success: true, data: record.values };
+    });
+
+    ipcMain.handle(Channels.GetHistory, async (): Promise<IpcResponse<Array<{ id: string; text: string; timestamp: string }>>> => ({
+        success: true,
+        data: historyService.getHistory(),
+    }));
+
+    ipcMain.handle(Channels.GetSelectedAudioInput, async (): Promise<IpcResponse<string>> => ({
+        success: true,
+        data: settingsService.getSettings().AUDIO_INPUT_DEVICE_ID || 'default',
+    }));
+
+    ipcMain.handle(Channels.SetSelectedAudioInput, async (_, deviceId: string): Promise<IpcResponse<string>> => {
+        const record = settingsRepository.updateLocal({ AUDIO_INPUT_DEVICE_ID: deviceId || 'default' });
+        return {
+            success: true,
+            data: record.values.AUDIO_INPUT_DEVICE_ID || 'default',
+        };
+    });
+
+    ipcMain.handle(Channels.GetAuthState, async (): Promise<IpcResponse<AuthState>> => ({
+        success: true,
+        data: currentAuthState,
+    }));
+
+    ipcMain.handle(Channels.SignUp, async (_, payload: SignUpRequest): Promise<IpcResponse<AuthState>> => {
+        try {
+            const result = await authService.signUp(payload);
+            sessionService.persist(result.session);
+            await hydrateAuthenticatedState();
+            return { success: true, data: currentAuthState };
+        } catch (error) {
+            return {
+                success: false,
+                error: {
+                    code: getErrorCode(error, 'auth_failed'),
+                    message: getErrorMessage(error, 'Sign-up failed.'),
+                },
+            };
         }
+    });
+
+    ipcMain.handle(Channels.SignIn, async (_, payload: SignInRequest): Promise<IpcResponse<AuthState>> => {
+        try {
+            const result = await authService.signIn(payload);
+            sessionService.persist(result.session);
+            await hydrateAuthenticatedState();
+            return { success: true, data: currentAuthState };
+        } catch (error) {
+            return {
+                success: false,
+                error: {
+                    code: getErrorCode(error, 'auth_failed'),
+                    message: getErrorMessage(error, 'Sign-in failed.'),
+                },
+            };
+        }
+    });
+
+    ipcMain.handle(Channels.SignInWithGoogle, async (): Promise<IpcResponse<AuthState>> => {
+        try {
+            const tokens = await startGoogleOAuthPkce();
+            const result = await authService.completeGoogleSignIn(tokens);
+            sessionService.persist(result.session);
+            await hydrateAuthenticatedState();
+            return { success: true, data: currentAuthState };
+        } catch (error) {
+            return {
+                success: false,
+                error: {
+                    code: getErrorCode(error, 'google_sign_in_failed'),
+                    message: getErrorMessage(error, 'Google sign-in failed.'),
+                },
+            };
+        }
+    });
+
+    ipcMain.handle(Channels.SignOut, async (): Promise<IpcResponse<AuthState>> => {
+        sessionService.clear();
+        syncQueueStoreService.clear();
+        accountProfileService.clearProfile();
+        const state = authService.signOut();
+        setAuthState(state);
+        return { success: true, data: state };
+    });
+
+    ipcMain.handle(Channels.UpdateSyncPreferences, async (_, update: SyncPreferencesUpdateRequest): Promise<IpcResponse<AuthState>> => {
+        const sessionPayload = authService.getCurrentSession();
+        if (!sessionPayload || currentAuthState.status !== 'authenticated') {
+            return {
+                success: false,
+                error: {
+                    code: 'not_authenticated',
+                    message: 'Sign in before updating sync preferences.',
+                },
+            };
+        }
+
+        try {
+            const profile = await cloudStoreService.updateSyncEnabled(sessionPayload, update.enabled);
+            accountProfileService.setProfile(profile);
+            if (!update.enabled) {
+                syncQueueStoreService.clear();
+            }
+            setAuthState({
+                status: 'authenticated',
+                user: profile,
+                sync: syncStatusFromCurrentState({
+                    enabled: update.enabled,
+                    status: update.enabled ? 'idle' : 'disabled',
+                    errorMessage: null,
+                }),
+                errorMessage: null,
+            });
+            if (update.enabled) {
+                await maybeSyncAuthenticatedState();
+            }
+            return { success: true, data: currentAuthState };
+        } catch (error) {
+            if (isSessionInvalidError(error)) {
+                const recovered = await forceSignedOutRecovery('Your session expired. Sign in again to resume sync.');
+                return { success: false, error: { code: 'session_invalid', message: recovered.errorMessage || 'Session expired.' } };
+            }
+
+            setSyncStatus({
+                status: isOfflineError(error) ? 'offline' : 'error',
+                errorMessage: getErrorMessage(error, 'Failed to update sync preferences.'),
+            });
+            return {
+                success: false,
+                error: {
+                    code: 'sync_preferences_failed',
+                    message: getErrorMessage(error, 'Failed to update sync preferences.'),
+                },
+            };
+        }
+    });
+
+    ipcMain.handle(Channels.GetMainWindowState, async (): Promise<IpcResponse<MainWindowStateEvent>> => ({
+        success: true,
+        data: {
+            isMaximized: mainWindow?.isMaximized() ?? false,
+        },
+    }));
+
+    ipcMain.handle(Channels.MinimizeMainWindow, async (): Promise<IpcResponse> => {
+        mainWindow?.minimize();
+        broadcastMainWindowState();
         return { success: true };
     });
 
-    ipcMain.handle(Channels.GetSettings, async (): Promise<IpcResponse> => {
-        return { success: true, data: settingsService.getSettings() };
+    ipcMain.handle(Channels.ToggleMainWindowMaximize, async (): Promise<IpcResponse> => {
+        if (mainWindow) {
+            if (mainWindow.isMaximized()) {
+                mainWindow.unmaximize();
+            } else {
+                mainWindow.maximize();
+            }
+        }
+        broadcastMainWindowState();
+        return { success: true };
     });
 
-    ipcMain.handle(Channels.GetHistory, async (): Promise<IpcResponse> => {
-        return { success: true, data: historyService.getHistory() };
+    ipcMain.handle(Channels.CloseMainWindow, async (): Promise<IpcResponse> => {
+        mainWindow?.close();
+        return { success: true };
     });
 
-    ipcMain.on(Channels.SendAudioData, (event, buffer: ArrayBuffer) => {
-        const buf = Buffer.from(buffer);
-        audioService.emit('audio-data', buf);
+    ipcMain.handle(Channels.CloseWidgetWindow, async (): Promise<IpcResponse> => {
+        widgetWindow?.hide();
+        return { success: true };
+    });
 
-        // Calculate amplitude (RMS of Int16 PCM)
+    ipcMain.on(Channels.SendAudioData, (_, payload: { sessionId?: string; buffer: ArrayBuffer }) => {
+        if (!payload?.sessionId || payload.sessionId !== activeDictationSessionId) {
+            return;
+        }
+
+        const buf = Buffer.from(payload.buffer);
+        transcriptionService.appendAudio(payload.sessionId, buf);
+
         let sumSq = 0;
         const count = buf.length / 2;
-        for (let i = 0; i < buf.length; i += 2) {
-            const val = buf.readInt16LE(i);
+        for (let index = 0; index < buf.length; index += 2) {
+            const val = buf.readInt16LE(index);
             const norm = val / 32768.0;
             sumSq += norm * norm;
         }
         const rms = count > 0 ? Math.sqrt(sumSq / count) : 0;
-
         safeSend(mainWindow, Channels.OnAmplitudeUpdate, rms);
         safeSend(widgetWindow, Channels.OnAmplitudeUpdate, rms);
     });
 }
 
-app.whenReady().then(() => {
-    session.defaultSession.setPermissionCheckHandler((webContents, permission, requestingOrigin, details) => {
-        if (permission === 'media') {
-            return true;
-        }
-        return false;
-    });
-    session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
-        if (permission === 'media') {
-            callback(true);
-        } else {
-            callback(false);
-        }
+app.whenReady().then(async () => {
+    session.defaultSession.setPermissionCheckHandler((_, permission) => permission === 'media');
+    session.defaultSession.setPermissionRequestHandler((_, permission, callback) => {
+        callback(permission === 'media');
     });
 
     createWindow();
@@ -310,7 +831,7 @@ app.whenReady().then(() => {
     createTray();
     registerHotkeys();
     registerIpcHandlers();
-    registerAutoUpdateHandlers();
+    await bootstrapAuthState();
 
     app.on('activate', () => {
         if (BrowserWindow.getAllWindows().length === 0) {
@@ -326,11 +847,14 @@ app.on('will-quit', () => {
     if (keyListener) {
         keyListener.kill();
     }
+    textInsertionService.resetSession(activeDictationSessionId);
 });
 
 app.on('second-instance', () => {
     if (mainWindow) {
-        if (mainWindow.isMinimized()) mainWindow.restore();
+        if (mainWindow.isMinimized()) {
+            mainWindow.restore();
+        }
         mainWindow.focus();
         mainWindow.show();
     }
@@ -341,5 +865,3 @@ app.on('window-all-closed', () => {
         app.quit();
     }
 });
-
-let isQuitting = false;
