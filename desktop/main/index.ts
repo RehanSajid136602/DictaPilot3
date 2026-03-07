@@ -1,13 +1,12 @@
 import { app, BrowserWindow, Menu, Tray, nativeImage, ipcMain, globalShortcut, screen, session, clipboard } from 'electron';
 import * as path from 'path';
-import * as dotenv from 'dotenv';
-import { Channels, IpcResponse } from 'dictapilot-desktop-shared';
+import { Channels, IpcResponse, loadDesktopEnv } from 'dictapilot-desktop-shared';
 import { audioService, transcriptionService, settingsService, historyService, editingService, GroqProvider } from 'dictapilot-desktop-backend';
 import { keyboard, Key } from '@nut-tree-fork/nut-js';
 import Store from 'electron-store';
 import { GlobalKeyboardListener } from 'node-global-key-listener';
 
-dotenv.config({ path: path.join(__dirname, '../../.env') });
+loadDesktopEnv();
 
 const store = new Store() as any;
 let mainWindow: BrowserWindow | null = null;
@@ -24,7 +23,7 @@ if (groqApiKey) {
     const groqProvider = new GroqProvider(groqApiKey);
     transcriptionService.setProvider(groqProvider);
 } else {
-    console.warn('GROQ_API_KEY not found in .env');
+    console.warn('GROQ_API_KEY not found. Dictation will fall back until a key is available.');
 }
 
 // Ensure single instance
@@ -122,7 +121,7 @@ function createWindow() {
     if (!app.isPackaged) {
         mainWindow.loadURL((process.env.VITE_DEV_SERVER_URL || 'http://localhost:5174'));
     } else {
-        mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
+        mainWindow.loadFile(path.join(__dirname, '../../renderer/dist/index.html'));
     }
 
     mainWindow.once('ready-to-show', () => {
@@ -177,7 +176,7 @@ function createWidgetWindow() {
     if (!app.isPackaged) {
         widgetWindow.loadURL((process.env.VITE_DEV_SERVER_URL || 'http://localhost:5174') + '#widget');
     } else {
-        widgetWindow.loadFile(path.join(__dirname, '../renderer/index.html'), { hash: 'widget' });
+        widgetWindow.loadFile(path.join(__dirname, '../../renderer/dist/index.html'), { hash: 'widget' });
     }
 
     widgetWindow.once('ready-to-show', () => {
@@ -349,3 +348,5 @@ app.on('window-all-closed', () => {
 });
 
 let isQuitting = false;
+
+
