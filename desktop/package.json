@@ -1,6 +1,6 @@
 {
     "name": "dictapilot-desktop",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "description": "DictaPilot Electron Application",
     "private": true,
     "repository": "https://github.com/example/dictapilot",
@@ -46,8 +46,8 @@
     },
     "dependencies": {
         "@nut-tree-fork/nut-js": "^4.2.6",
-        "dictapilot-desktop-backend": "1.0.0",
-        "dictapilot-desktop-shared": "1.0.0",
+        "dictapilot-desktop-backend": "1.0.1",
+        "dictapilot-desktop-shared": "1.0.1",
         "electron-store": "^8.1.0",
         "firebase": "^12.10.0",
         "groq-sdk": "^0.37.0",

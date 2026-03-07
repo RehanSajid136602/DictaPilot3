@@ -1,0 +1,8 @@
+version: 1.0.1
+files:
+  - url: DictaPilot-Setup-1.0.1.exe
+    sha512: EUq1DBd7sdnIGe2ZZj2KMV8sZElSGS8EPUMVul54A8bMDSwc5QnIGGHk4i8C3kZ7mgx2mWuWaFjtlMldOqlqGQ==
+    size: 74725268
+path: DictaPilot-Setup-1.0.1.exe
+sha512: EUq1DBd7sdnIGe2ZZj2KMV8sZElSGS8EPUMVul54A8bMDSwc5QnIGGHk4i8C3kZ7mgx2mWuWaFjtlMldOqlqGQ==
+releaseDate: '2026-03-07T20:01:18.721Z'
