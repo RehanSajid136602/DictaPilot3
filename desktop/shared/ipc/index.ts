@@ -24,10 +24,6 @@ export interface StateChangeEvent {
     state: DictationState;
 }
 
-export interface MainWindowStateEvent {
-    isMaximized: boolean;
-}
-
 // Channels
 export const Channels = {
     StartDictation: 'dictation:start',
@@ -35,17 +31,11 @@ export const Channels = {
     UpdateSettings: 'settings:update',
     GetSettings: 'settings:get',
     GetHistory: 'history:get',
-    GetMainWindowState: 'window:main:get-state',
-    MinimizeMainWindow: 'window:main:minimize',
-    ToggleMainWindowMaximize: 'window:main:toggle-maximize',
-    CloseMainWindow: 'window:main:close',
-    CloseWidgetWindow: 'window:widget:close',
     SendAudioData: 'dictation:audio-data',
 
     // Events sent main -> renderer
     OnTranscriptionUpdate: 'dictation:on-transcription-update',
     OnStateChange: 'dictation:on-state-change',
     OnHotkeyPress: 'hotkey-pressed',
-    OnAmplitudeUpdate: 'dictation:on-amplitude-update',
-    OnMainWindowStateChange: 'window:main:on-state-change'
+    OnAmplitudeUpdate: 'dictation:on-amplitude-update'
 } as const;

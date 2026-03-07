@@ -1,7 +1,10 @@
 import Groq from 'groq-sdk';
-import { loadDesktopEnv } from 'dictapilot-desktop-shared';
+import * as dotenv from 'dotenv';
+import * as path from 'path';
 
-loadDesktopEnv();
+dotenv.config({ path: path.join(__dirname, '../../../../.env') });
+
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY || '' });
 
 const SYSTEM_PROMPT = `
 You are a smart dictation editor. Your task is to clean up transcripts and execute voice commands within them.
@@ -42,22 +45,19 @@ export class EditingService {
     // Advanced LLM processing for final output
     async processSmart(text: string): Promise<string> {
         if (!text || text.trim().length === 0) return text;
-        const apiKey = process.env.GROQ_API_KEY;
-        if (!apiKey) {
+        if (!process.env.GROQ_API_KEY) {
             console.warn("GROQ_API_KEY not found, falling back to basic editing.");
             return this.process(text);
         }
 
         try {
             console.log("LLM Smart Edit starting...");
-            const groq = new Groq({ apiKey });
-            const chatModel = process.env.GROQ_CHAT_MODEL || 'openai/gpt-oss-120b';
             const completion = await groq.chat.completions.create({
                 messages: [
                     { role: 'system', content: SYSTEM_PROMPT },
                     { role: 'user', content: text }
                 ],
-                model: chatModel,
+                model: 'llama3-8b-8192',
                 temperature: 0.1,
                 max_tokens: 2048,
             });
@@ -74,4 +74,3 @@ export class EditingService {
 }
 
 export const editingService = new EditingService();
-
