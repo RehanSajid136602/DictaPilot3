@@ -123,3 +123,10 @@ export const SIGNED_OUT_AUTH_STATE: AuthState = {
     sync: DEFAULT_SYNC_PREFERENCES,
     errorMessage: null,
 };
+
+export const LOADING_AUTH_STATE: AuthState = {
+    status: 'loading',
+    user: null,
+    sync: DEFAULT_SYNC_PREFERENCES,
+    errorMessage: null,
+};

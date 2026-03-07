@@ -2,10 +2,12 @@ import { app, BrowserWindow, Menu, Tray, nativeImage, ipcMain, screen, session, 
 import { randomUUID } from 'crypto';
 import * as path from 'path';
 import {
+    DEFAULT_SYNC_PREFERENCES,
     type DictationSessionResponse,
     Channels,
     type AuthState,
     type IpcResponse,
+    LOADING_AUTH_STATE,
     type MainWindowStateEvent,
     SIGNED_OUT_AUTH_STATE,
     type SignInRequest,
@@ -34,6 +36,7 @@ import {
     syncQueueStoreService,
     textInsertionService,
     transcriptionService,
+    validateFirebaseProviderConfig,
     GroqProvider,
 } from 'dictapilot-desktop-backend';
 import { keyboard, Key } from '@nut-tree-fork/nut-js';
@@ -53,7 +56,7 @@ let keyListener: GlobalKeyboardListener | null = null;
 let currentHotkey = 'F9';
 let isRecording = false;
 let isQuitting = false;
-let currentAuthState: AuthState = { ...SIGNED_OUT_AUTH_STATE };
+let currentAuthState: AuthState = { ...LOADING_AUTH_STATE };
 let activeDictationSessionId: string | null = null;
 
 function getErrorCode(error: unknown, fallbackCode: string): string {
@@ -106,6 +109,70 @@ function syncStatusFromCurrentState(overrides?: Partial<SyncPreferences>): SyncP
     };
 }
 
+function buildSignedOutState(errorMessage?: string | null): AuthState {
+    return {
+        ...SIGNED_OUT_AUTH_STATE,
+        sync: {
+            ...DEFAULT_SYNC_PREFERENCES,
+            pendingOperations: 0,
+        },
+        errorMessage: errorMessage ?? null,
+    };
+}
+
+function revealMainWindow(): void {
+    if (!mainWindow) {
+        return;
+    }
+    mainWindow.show();
+    mainWindow.focus();
+    mainWindow.moveTop();
+}
+
+function syncAuthWindowAccess(): void {
+    if (currentAuthState.status === 'authenticated') {
+        if (widgetWindow && !widgetWindow.isDestroyed() && !widgetWindow.isVisible()) {
+            widgetWindow.showInactive();
+        }
+        return;
+    }
+
+    if (widgetWindow && !widgetWindow.isDestroyed() && widgetWindow.isVisible()) {
+        widgetWindow.hide();
+    }
+}
+
+function resetActiveDictationSession(): void {
+    const sessionId = activeDictationSessionId;
+    if (!sessionId && !isRecording) {
+        return;
+    }
+
+    isRecording = false;
+    activeDictationSessionId = null;
+    audioService.stop();
+
+    if (sessionId) {
+        transcriptionService.abortSession(sessionId);
+        textInsertionService.resetSession(sessionId);
+    }
+
+    safeSend(mainWindow, Channels.OnStateChange, { state: 'idle', sessionId: null });
+    safeSend(widgetWindow, Channels.OnStateChange, { state: 'idle', sessionId: null });
+}
+
+function requireAuthenticatedAccess(message: string): boolean {
+    if (currentAuthState.status === 'authenticated') {
+        return true;
+    }
+
+    if (currentAuthState.status !== 'loading') {
+        setAuthState(buildSignedOutState(message));
+    }
+    revealMainWindow();
+    return false;
+}
+
 function publishAuthState(): void {
     safeSend(mainWindow, Channels.OnAuthStateChange, currentAuthState);
 }
@@ -119,11 +186,13 @@ function setSyncStatus(overrides?: Partial<SyncPreferences>): void {
         ...currentAuthState,
         sync: syncStatusFromCurrentState(overrides),
     };
+    syncAuthWindowAccess();
     publishSyncStatus();
     publishAuthState();
 }
 
 function setAuthState(next: AuthState): void {
+    const wasAuthenticated = currentAuthState.status === 'authenticated';
     currentAuthState = {
         ...next,
         sync: {
@@ -131,6 +200,10 @@ function setAuthState(next: AuthState): void {
             pendingOperations: syncQueueStoreService.getPendingCount(),
         },
     };
+    if (wasAuthenticated && currentAuthState.status !== 'authenticated') {
+        resetActiveDictationSession();
+    }
+    syncAuthWindowAccess();
     publishAuthState();
     publishSyncStatus();
 }
@@ -193,19 +266,10 @@ async function forceSignedOutRecovery(message: string): Promise<AuthState> {
     sessionService.clear();
     syncQueueStoreService.clear();
     accountProfileService.clearProfile();
-
-    const signedOut = authService.signOut();
-    const nextState: AuthState = {
-        ...signedOut,
-        errorMessage: message,
-        sync: {
-            ...signedOut.sync,
-            pendingOperations: 0,
-            status: 'disabled',
-            errorMessage: null,
-        },
-    };
+    authService.signOut();
+    const nextState = buildSignedOutState(message);
     setAuthState(nextState);
+    revealMainWindow();
     return nextState;
 }
 
@@ -356,10 +420,23 @@ async function hydrateAuthenticatedState(): Promise<AuthState> {
 }
 
 async function bootstrapAuthState(): Promise<void> {
+    const configValidation = validateFirebaseProviderConfig({ requireGoogle: true });
+    if (!configValidation.valid) {
+        accountProfileService.clearProfile();
+        syncQueueStoreService.clear();
+        setAuthState(
+            buildSignedOutState(
+                `Authentication is required, but Firebase is not configured. Missing: ${configValidation.missing.join(', ')}`
+            )
+        );
+        return;
+    }
+
     const persisted = sessionService.load();
     if (!persisted) {
         accountProfileService.clearProfile();
-        setAuthState({ ...SIGNED_OUT_AUTH_STATE });
+        syncQueueStoreService.clear();
+        setAuthState(buildSignedOutState());
         return;
     }
 
@@ -373,6 +450,14 @@ async function bootstrapAuthState(): Promise<void> {
 }
 
 async function handleStartDictation() {
+    if (!requireAuthenticatedAccess(
+        currentAuthState.status === 'loading'
+            ? 'DictaPilot is still restoring your session.'
+            : 'Sign in or create an account to start dictation.'
+    )) {
+        return null;
+    }
+
     if (isRecording) {
         return activeDictationSessionId;
     }
@@ -519,7 +604,7 @@ function createWidgetWindow(): void {
     }
 
     widgetWindow.once('ready-to-show', () => {
-        widgetWindow?.showInactive();
+        syncAuthWindowAccess();
     });
 }
 
@@ -557,7 +642,13 @@ function createTray(): void {
         },
         {
             label: 'Show Widget',
-            click: () => widgetWindow?.showInactive(),
+            click: () => {
+                if (currentAuthState.status === 'authenticated') {
+                    widgetWindow?.showInactive();
+                    return;
+                }
+                revealMainWindow();
+            },
         },
         { type: 'separator' },
         {
@@ -608,7 +699,18 @@ function registerIpcHandlers(): void {
 
     ipcMain.handle(Channels.StartDictation, async (): Promise<DictationSessionResponse> => {
         const sessionId = await handleStartDictation();
-        return { success: true, data: sessionId ? { sessionId } : undefined };
+        if (!sessionId) {
+            return {
+                success: false,
+                error: {
+                    code: currentAuthState.status === 'loading' ? 'auth_bootstrapping' : 'not_authenticated',
+                    message: currentAuthState.status === 'loading'
+                        ? 'DictaPilot is still restoring your session.'
+                        : 'Sign in or create an account to start dictation.',
+                },
+            };
+        }
+        return { success: true, data: { sessionId } };
     });
 
     ipcMain.handle(Channels.StopDictation, async (): Promise<IpcResponse> => {
@@ -707,8 +809,10 @@ function registerIpcHandlers(): void {
         sessionService.clear();
         syncQueueStoreService.clear();
         accountProfileService.clearProfile();
-        const state = authService.signOut();
+        authService.signOut();
+        const state = buildSignedOutState();
         setAuthState(state);
+        revealMainWindow();
         return { success: true, data: state };
     });
 
