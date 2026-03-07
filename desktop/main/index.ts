@@ -1,7 +1,7 @@
 import { app, BrowserWindow, Menu, Tray, nativeImage, ipcMain, globalShortcut, screen, session, clipboard } from 'electron';
 import * as path from 'path';
 import { Channels, IpcResponse, loadDesktopEnv } from 'dictapilot-desktop-shared';
-import { audioService, transcriptionService, settingsService, historyService, editingService, GroqProvider } from 'dictapilot-desktop-backend';
+import { audioService, transcriptionService, settingsService, historyService, editingService, GroqProvider, SmartEditResult } from 'dictapilot-desktop-backend';
 import { keyboard, Key } from '@nut-tree-fork/nut-js';
 import Store from 'electron-store';
 import { GlobalKeyboardListener } from 'node-global-key-listener';
@@ -18,6 +18,7 @@ let keyListener: GlobalKeyboardListener | null = null;
 let currentHotkey = 'F9';
 let isRecording = false;
 let isQuitting = false;
+let appliedTranscript = '';
 
 function configureRuntimeSettings() {
     const settings = settingsService.getSettings();
@@ -83,6 +84,69 @@ function normalizeWindowBounds(bounds: { width: number; height: number; x?: numb
     };
 }
 
+function longestCommonPrefix(a: string, b: string) {
+    const limit = Math.min(a.length, b.length);
+    let index = 0;
+
+    while (index < limit && a[index] === b[index]) {
+        index += 1;
+    }
+
+    return index;
+}
+
+function computeDelta(previousText: string, updatedText: string) {
+    const prefixLength = longestCommonPrefix(previousText || '', updatedText || '');
+    return {
+        deleteCount: Math.max(0, (previousText || '').length - prefixLength),
+        insertText: (updatedText || '').slice(prefixLength),
+    };
+}
+
+function sleep(ms: number) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function pasteInsert(text: string) {
+    if (!text) {
+        return;
+    }
+
+    clipboard.writeText(text);
+    await sleep(50);
+    await keyboard.pressKey(Key.LeftControl, Key.V);
+    await keyboard.releaseKey(Key.LeftControl, Key.V);
+}
+
+async function sendBackspaces(count: number) {
+    for (let index = 0; index < count; index += 1) {
+        await keyboard.pressKey(Key.Backspace);
+        await keyboard.releaseKey(Key.Backspace);
+    }
+}
+
+async function applySmartEditResult(result: SmartEditResult) {
+    if (mainWindow?.isFocused() || widgetWindow?.isFocused()) {
+        console.log('DictaPilot is focused, skipping external text injection.');
+        return;
+    }
+
+    if (result.action === 'ignore') {
+        return;
+    }
+
+    const { deleteCount, insertText } = computeDelta(appliedTranscript, result.updatedText);
+    if (deleteCount > 0) {
+        await sendBackspaces(deleteCount);
+    }
+
+    if (insertText) {
+        await pasteInsert(insertText);
+    }
+
+    appliedTranscript = result.updatedText;
+}
+
 async function handleStartDictation() {
     if (isRecording) return;
     isRecording = true;
@@ -106,34 +170,23 @@ async function handleStopDictation() {
         const finalRawText = await transcriptionService.stop();
         if (finalRawText) {
             console.log('Final transcription received, applying smart edit...');
-            const finalCleanText = await editingService.processSmart(finalRawText);
+            const smartEditResult = await editingService.processSmart(finalRawText);
 
             safeSend(mainWindow, Channels.OnTranscriptionUpdate, {
-                text: finalCleanText,
+                text: smartEditResult.displayText,
                 isFinal: true
             });
             safeSend(widgetWindow, Channels.OnTranscriptionUpdate, {
-                text: finalCleanText,
+                text: smartEditResult.displayText,
                 isFinal: true
             });
-            historyService.saveResult(finalCleanText);
+            if ((smartEditResult.action === 'append' || smartEditResult.action === 'undo_append') && smartEditResult.updatedText) {
+                historyService.saveResult(smartEditResult.updatedText);
+            }
 
-            // Auto paste
-            clipboard.writeText(finalCleanText);
             try {
-                // If DictaPilot itself is focused, the UI already displays the text, do not paste it.
-                if (mainWindow?.isFocused() || widgetWindow?.isFocused()) {
-                    console.log("DictaPilot is focused, skipping auto-paste to avoid double typing in our own UI.");
-                } else {
-                    // Return focus to the active window before pasting
-                    if (mainWindow && Reflect.has(mainWindow, 'restoreFocus')) {
-                        // Try some electron trick if possible, usually windows manages this if we don't steal focus.
-                    }
-                    setTimeout(async () => {
-                        await keyboard.pressKey(Key.LeftControl, Key.V);
-                        await keyboard.releaseKey(Key.LeftControl, Key.V);
-                    }, 100); // small delay to ensure clipboard is ready
-                }
+                await sleep(100);
+                await applySmartEditResult(smartEditResult);
             } catch (err) {
                 console.error('Auto-paste failed:', err);
             }

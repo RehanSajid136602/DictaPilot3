@@ -35,6 +35,14 @@ export class TranscriptionService extends EventEmitter {
         });
     }
 
+    clearProvider() {
+        if (this.provider) {
+            this.provider.removeAllListeners('transcription-update');
+            this.provider.removeAllListeners('error');
+        }
+        this.provider = null;
+    }
+
     start() {
         if (!this.provider) {
             console.error('TranscriptionService: No provider set');

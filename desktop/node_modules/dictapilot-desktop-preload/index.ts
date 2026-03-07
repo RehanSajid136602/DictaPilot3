@@ -1,5 +1,11 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import { Channels, IpcResponse, TranscriptionUpdateEvent, StateChangeEvent } from 'dictapilot-desktop-shared';
+import {
+    Channels,
+    IpcResponse,
+    MainWindowStateEvent,
+    StateChangeEvent,
+    TranscriptionUpdateEvent
+} from 'dictapilot-desktop-shared';
 
 const dictationAPI = {
     startDictation: (): Promise<IpcResponse> => ipcRenderer.invoke(Channels.StartDictation),
@@ -7,6 +13,11 @@ const dictationAPI = {
     updateSettings: (settings: any): Promise<IpcResponse> => ipcRenderer.invoke(Channels.UpdateSettings, settings),
     getSettings: (): Promise<IpcResponse> => ipcRenderer.invoke(Channels.GetSettings),
     getHistory: (): Promise<IpcResponse> => ipcRenderer.invoke(Channels.GetHistory),
+    getMainWindowState: (): Promise<IpcResponse<MainWindowStateEvent>> => ipcRenderer.invoke(Channels.GetMainWindowState),
+    minimizeMainWindow: (): Promise<IpcResponse> => ipcRenderer.invoke(Channels.MinimizeMainWindow),
+    toggleMainWindowMaximize: (): Promise<IpcResponse> => ipcRenderer.invoke(Channels.ToggleMainWindowMaximize),
+    closeMainWindow: (): Promise<IpcResponse> => ipcRenderer.invoke(Channels.CloseMainWindow),
+    closeWidgetWindow: (): Promise<IpcResponse> => ipcRenderer.invoke(Channels.CloseWidgetWindow),
     
     sendAudioData: (buffer: ArrayBuffer) => ipcRenderer.send(Channels.SendAudioData, buffer),
 
@@ -32,6 +43,12 @@ const dictationAPI = {
         const sub = () => callback();
         ipcRenderer.on(Channels.OnHotkeyPress, sub);
         return () => ipcRenderer.removeListener(Channels.OnHotkeyPress, sub);
+    },
+
+    onMainWindowStateChange: (callback: (data: MainWindowStateEvent) => void) => {
+        const sub = (_: any, data: MainWindowStateEvent) => callback(data);
+        ipcRenderer.on(Channels.OnMainWindowStateChange, sub);
+        return () => ipcRenderer.removeListener(Channels.OnMainWindowStateChange, sub);
     }
 };
 
