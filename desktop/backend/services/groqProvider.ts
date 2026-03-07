@@ -12,10 +12,12 @@ export class GroqProvider extends EventEmitter implements TranscriptionProvider 
     private processInterval: NodeJS.Timeout | null = null;
     private tempFileCount = 0;
     private isProcessing = false;
+    private transcriptionModel: string;
 
     constructor(apiKey: string) {
         super();
         this.groq = new Groq({ apiKey });
+        this.transcriptionModel = process.env.GROQ_WHISPER_MODEL || 'whisper-large-v3-turbo';
     }
 
     start() {
@@ -90,7 +92,7 @@ export class GroqProvider extends EventEmitter implements TranscriptionProvider 
         try {
             const transcription = await this.groq.audio.transcriptions.create({
                 file: fs.createReadStream(tempPath),
-                model: 'whisper-large-v3',
+                model: this.transcriptionModel,
                 language: 'en',
             });
 

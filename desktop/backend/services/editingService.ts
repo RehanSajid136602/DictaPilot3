@@ -51,12 +51,13 @@ export class EditingService {
         try {
             console.log("LLM Smart Edit starting...");
             const groq = new Groq({ apiKey });
+            const chatModel = process.env.GROQ_CHAT_MODEL || 'openai/gpt-oss-120b';
             const completion = await groq.chat.completions.create({
                 messages: [
                     { role: 'system', content: SYSTEM_PROMPT },
                     { role: 'user', content: text }
                 ],
-                model: 'openai/gpt-oss-120b',
+                model: chatModel,
                 temperature: 0.1,
                 max_tokens: 2048,
             });

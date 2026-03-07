@@ -7,6 +7,7 @@ import Store from 'electron-store';
 import { GlobalKeyboardListener } from 'node-global-key-listener';
 
 loadDesktopEnv();
+app.disableHardwareAcceleration();
 
 const store = new Store() as any;
 let mainWindow: BrowserWindow | null = null;
@@ -17,14 +18,21 @@ let keyListener: GlobalKeyboardListener | null = null;
 let currentHotkey = 'F9';
 let isRecording = false;
 
-// Initialize GroqProvider
-const groqApiKey = process.env.GROQ_API_KEY || '';
-if (groqApiKey) {
-    const groqProvider = new GroqProvider(groqApiKey);
-    transcriptionService.setProvider(groqProvider);
-} else {
-    console.warn('GROQ_API_KEY not found. Dictation will fall back until a key is available.');
+function configureRuntimeSettings() {
+    const settings = settingsService.getSettings();
+    currentHotkey = (settings.HOTKEY || 'F9').toUpperCase();
+
+    const groqApiKey = settings.GROQ_API_KEY || process.env.GROQ_API_KEY || '';
+    if (groqApiKey) {
+        const groqProvider = new GroqProvider(groqApiKey);
+        transcriptionService.setProvider(groqProvider);
+    } else {
+        transcriptionService.clearProvider();
+        console.warn('GROQ_API_KEY not found. Dictation will fall back until a key is available.');
+    }
 }
+
+configureRuntimeSettings();
 
 // Ensure single instance
 const gotTheLock = app.requestSingleInstanceLock();
@@ -38,12 +46,43 @@ function safeSend(window: BrowserWindow | null, channel: string, ...args: any[])
     }
 }
 
+function normalizeWindowBounds(bounds: { width: number; height: number; x?: number; y?: number }) {
+    const displays = screen.getAllDisplays();
+    const hasSavedPosition = typeof bounds.x === 'number' && typeof bounds.y === 'number';
+
+    if (hasSavedPosition) {
+        const visibleOnAnyDisplay = displays.some(({ workArea }) => {
+            const x = bounds.x as number;
+            const y = bounds.y as number;
+            return (
+                x < workArea.x + workArea.width &&
+                x + bounds.width > workArea.x &&
+                y < workArea.y + workArea.height &&
+                y + bounds.height > workArea.y
+            );
+        });
+
+        if (visibleOnAnyDisplay) {
+            return bounds;
+        }
+    }
+
+    const primaryWorkArea = screen.getPrimaryDisplay().workArea;
+    return {
+        width: Math.min(bounds.width, primaryWorkArea.width),
+        height: Math.min(bounds.height, primaryWorkArea.height),
+        x: Math.round(primaryWorkArea.x + (primaryWorkArea.width - bounds.width) / 2),
+        y: Math.round(primaryWorkArea.y + Math.max(24, (primaryWorkArea.height - bounds.height) / 2)),
+    };
+}
+
 async function handleStartDictation() {
     if (isRecording) return;
     isRecording = true;
     console.log('Main IPC: Start dictation requested');
     audioService.start();
     transcriptionService.start();
+    widgetWindow?.showInactive();
     safeSend(mainWindow, Channels.OnStateChange, { state: 'recording' });
     safeSend(widgetWindow, Channels.OnStateChange, { state: 'recording' });
 }
@@ -99,16 +138,18 @@ async function handleStopDictation() {
 
     safeSend(mainWindow, Channels.OnStateChange, { state: 'idle' });
     safeSend(widgetWindow, Channels.OnStateChange, { state: 'idle' });
+    widgetWindow?.hide();
 }
 
 function createWindow() {
-    const bounds = store.get('windowBounds', { width: 600, height: 800 }) as { width: number, height: number, x?: number, y?: number };
+    const savedBounds = store.get('windowBounds', { width: 600, height: 800 }) as { width: number, height: number, x?: number, y?: number };
+    const bounds = normalizeWindowBounds(savedBounds);
 
     mainWindow = new BrowserWindow({
         ...bounds,
         show: false,
         frame: false,
-        transparent: true,
+        backgroundColor: '#050505',
         webPreferences: {
             preload: path.join(__dirname, '../../preload/dist/index.js'),
             nodeIntegration: false,
@@ -126,6 +167,8 @@ function createWindow() {
 
     mainWindow.once('ready-to-show', () => {
         mainWindow?.show();
+        mainWindow?.focus();
+        mainWindow?.moveTop();
         // mainWindow?.webContents.openDevTools({ mode: 'detach' });
     });
 
@@ -161,7 +204,7 @@ function createWidgetWindow() {
         y: height - widgetHeight - 40,
         show: false,
         frame: false,
-        transparent: true,
+        backgroundColor: '#101214',
         alwaysOnTop: true,
         skipTaskbar: true,
         resizable: false,
@@ -180,12 +223,14 @@ function createWidgetWindow() {
     }
 
     widgetWindow.once('ready-to-show', () => {
-        widgetWindow?.show();
+        if (isRecording) {
+            widgetWindow?.showInactive();
+        }
     });
 }
 
 function registerHotkeys() {
-    currentHotkey = (store.get('settings.hotkey') as string) || 'F9';
+    currentHotkey = (settingsService.getSettings().HOTKEY || 'F9').toUpperCase();
 
     if (!keyListener) {
         keyListener = new GlobalKeyboardListener();
@@ -209,7 +254,13 @@ function createTray() {
     const contextMenu = Menu.buildFromTemplate([
         { label: 'DictaPilot', enabled: false },
         { type: 'separator' },
-        { label: 'Show Dashboard', click: () => mainWindow?.show() },
+        {
+            label: 'Show Dashboard', click: () => {
+                mainWindow?.show();
+                mainWindow?.focus();
+                mainWindow?.moveTop();
+            }
+        },
         { type: 'separator' },
         {
             label: 'Quit DictaPilot', click: () => {
@@ -222,7 +273,15 @@ function createTray() {
     tray.setToolTip('DictaPilot Dictation Engine');
     tray.setContextMenu(contextMenu);
     tray.on('click', () => {
-        mainWindow?.isVisible() ? mainWindow.hide() : mainWindow?.show();
+        if (!mainWindow) return;
+        if (mainWindow.isVisible()) {
+            mainWindow.hide();
+            return;
+        }
+
+        mainWindow.show();
+        mainWindow.focus();
+        mainWindow.moveTop();
     });
 }
 
@@ -261,14 +320,11 @@ function registerIpcHandlers() {
     ipcMain.handle(Channels.UpdateSettings, async (_, settings: any): Promise<IpcResponse> => {
         console.log('Main IPC: Settings update', settings);
         settingsService.updateSettings(settings);
-        if (settings.hotkey) {
-            store.set('settings.hotkey', settings.hotkey);
-            currentHotkey = settings.hotkey;
-        }
+        configureRuntimeSettings();
         return { success: true };
     });
 
-    ipcMain.handle(Channels.GetSettings, async (): Promise<IpcResponse> => {
+    ipcMain.handle(Channels.GetSettings, async (): Promise<IpcResponse<any>> => {
         return { success: true, data: settingsService.getSettings() };
     });
 
