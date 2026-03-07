@@ -1,5 +1,20 @@
 import { useEffect, useRef, useState } from 'react';
-import { Mic, History, Settings, Menu, X, Copy, Trash2, Wand2, Square, Eye, EyeOff } from 'lucide-react';
+import {
+  Mic,
+  History,
+  Settings,
+  Menu,
+  X,
+  Copy,
+  Trash2,
+  Wand2,
+  Square,
+  Eye,
+  EyeOff,
+  Minus,
+  Maximize2,
+  Minimize2,
+} from 'lucide-react';
 import {
   DESKTOP_SETTING_DEFINITIONS,
   type DesktopSettingDefinition,
@@ -35,6 +50,7 @@ function App() {
   const [history, setHistory] = useState<any[]>([]);
   const [settings, setSettings] = useState<DesktopSettings>({} as DesktopSettings);
   const [revealedKeys, setRevealedKeys] = useState<Record<string, boolean>>({});
+  const [isWindowMaximized, setIsWindowMaximized] = useState(false);
 
   const audioContextRef = useRef<AudioContext | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -62,13 +78,13 @@ function App() {
     // @ts-ignore
     const settingsRes = await window.dictationAPI.getSettings();
     if (settingsRes.success) {
-      setSettings(settingsRes.data);
+      setSettings(settingsRes.data ?? ({} as DesktopSettings));
     }
 
     // @ts-ignore
     const historyRes = await window.dictationAPI.getHistory();
     if (historyRes.success) {
-      setHistory(historyRes.data);
+      setHistory(historyRes.data ?? []);
     }
   };
 
@@ -150,10 +166,21 @@ function App() {
       toggleDictation();
     });
 
+    const unsubMainWindowState = window.dictationAPI.onMainWindowStateChange((data: { isMaximized: boolean }) => {
+      setIsWindowMaximized(Boolean(data?.isMaximized));
+    });
+
+    window.dictationAPI.getMainWindowState().then((response: any) => {
+      if (response?.success) {
+        setIsWindowMaximized(Boolean(response.data?.isMaximized));
+      }
+    });
+
     return () => {
       unsubState();
       unsubTranscription();
       unsubHotkey();
+      unsubMainWindowState();
     };
   }, []);
 
@@ -252,6 +279,35 @@ function App() {
     <div className="app-shell">
       <div className="title-bar">
         <div className="title-drag-area">DictaPilot</div>
+        <div className="window-controls">
+          <button
+            className="window-control-btn"
+            type="button"
+            onClick={() => window.dictationAPI?.minimizeMainWindow()}
+            aria-label="Minimize window"
+            title="Minimize"
+          >
+            <Minus size={16} />
+          </button>
+          <button
+            className="window-control-btn"
+            type="button"
+            onClick={() => window.dictationAPI?.toggleMainWindowMaximize()}
+            aria-label={isWindowMaximized ? 'Restore window' : 'Maximize window'}
+            title={isWindowMaximized ? 'Restore' : 'Maximize'}
+          >
+            {isWindowMaximized ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+          </button>
+          <button
+            className="window-control-btn close"
+            type="button"
+            onClick={() => window.dictationAPI?.closeMainWindow()}
+            aria-label="Close window"
+            title="Close"
+          >
+            <X size={15} />
+          </button>
+        </div>
       </div>
 
       <main className={cn('main-stage', isSidebarOpen && 'sidebar-open')}>

@@ -17,6 +17,7 @@ let tray: Tray | null = null;
 let keyListener: GlobalKeyboardListener | null = null;
 let currentHotkey = 'F9';
 let isRecording = false;
+let isQuitting = false;
 
 function configureRuntimeSettings() {
     const settings = settingsService.getSettings();
@@ -44,6 +45,12 @@ function safeSend(window: BrowserWindow | null, channel: string, ...args: any[])
     if (window && !window.isDestroyed() && window.webContents) {
         window.webContents.send(channel, ...args);
     }
+}
+
+function broadcastMainWindowState() {
+    safeSend(mainWindow, Channels.OnMainWindowStateChange, {
+        isMaximized: mainWindow?.isMaximized() ?? false
+    });
 }
 
 function normalizeWindowBounds(bounds: { width: number; height: number; x?: number; y?: number }) {
@@ -82,7 +89,6 @@ async function handleStartDictation() {
     console.log('Main IPC: Start dictation requested');
     audioService.start();
     transcriptionService.start();
-    widgetWindow?.showInactive();
     safeSend(mainWindow, Channels.OnStateChange, { state: 'recording' });
     safeSend(widgetWindow, Channels.OnStateChange, { state: 'recording' });
 }
@@ -138,7 +144,6 @@ async function handleStopDictation() {
 
     safeSend(mainWindow, Channels.OnStateChange, { state: 'idle' });
     safeSend(widgetWindow, Channels.OnStateChange, { state: 'idle' });
-    widgetWindow?.hide();
 }
 
 function createWindow() {
@@ -169,6 +174,7 @@ function createWindow() {
         mainWindow?.show();
         mainWindow?.focus();
         mainWindow?.moveTop();
+        broadcastMainWindowState();
         // mainWindow?.webContents.openDevTools({ mode: 'detach' });
     });
 
@@ -188,20 +194,26 @@ function createWindow() {
 
     mainWindow.on('resize', saveBounds);
     mainWindow.on('moved', saveBounds);
+    mainWindow.on('maximize', broadcastMainWindowState);
+    mainWindow.on('unmaximize', broadcastMainWindowState);
+    mainWindow.on('enter-full-screen', broadcastMainWindowState);
+    mainWindow.on('leave-full-screen', broadcastMainWindowState);
 }
 
 function createWidgetWindow() {
     const primaryDisplay = screen.getPrimaryDisplay();
-    const { width, height } = primaryDisplay.workAreaSize;
+    const { x, y, width } = primaryDisplay.workArea;
 
     const widgetWidth = 180;
     const widgetHeight = 44;
+    const widgetX = Math.round(x + (width - widgetWidth) / 2);
+    const widgetY = y + 24;
 
     widgetWindow = new BrowserWindow({
         width: widgetWidth,
         height: widgetHeight,
-        x: (width - widgetWidth) / 2,
-        y: height - widgetHeight - 40,
+        x: widgetX,
+        y: widgetY,
         show: false,
         frame: false,
         backgroundColor: '#101214',
@@ -223,9 +235,8 @@ function createWidgetWindow() {
     }
 
     widgetWindow.once('ready-to-show', () => {
-        if (isRecording) {
-            widgetWindow?.showInactive();
-        }
+        widgetWindow?.setAlwaysOnTop(true, 'screen-saver');
+        widgetWindow?.showInactive();
     });
 }
 
@@ -259,6 +270,12 @@ function createTray() {
                 mainWindow?.show();
                 mainWindow?.focus();
                 mainWindow?.moveTop();
+            }
+        },
+        {
+            label: 'Show Widget', click: () => {
+                widgetWindow?.setAlwaysOnTop(true, 'screen-saver');
+                widgetWindow?.showInactive();
             }
         },
         { type: 'separator' },
@@ -332,6 +349,44 @@ function registerIpcHandlers() {
         return { success: true, data: historyService.getHistory() };
     });
 
+    ipcMain.handle(Channels.GetMainWindowState, async (): Promise<IpcResponse<{ isMaximized: boolean }>> => {
+        return {
+            success: true,
+            data: {
+                isMaximized: mainWindow?.isMaximized() ?? false
+            }
+        };
+    });
+
+    ipcMain.handle(Channels.MinimizeMainWindow, async (): Promise<IpcResponse> => {
+        mainWindow?.minimize();
+        broadcastMainWindowState();
+        return { success: true };
+    });
+
+    ipcMain.handle(Channels.ToggleMainWindowMaximize, async (): Promise<IpcResponse> => {
+        if (mainWindow) {
+            if (mainWindow.isMaximized()) {
+                mainWindow.unmaximize();
+            } else {
+                mainWindow.maximize();
+            }
+        }
+
+        broadcastMainWindowState();
+        return { success: true };
+    });
+
+    ipcMain.handle(Channels.CloseMainWindow, async (): Promise<IpcResponse> => {
+        mainWindow?.close();
+        return { success: true };
+    });
+
+    ipcMain.handle(Channels.CloseWidgetWindow, async (): Promise<IpcResponse> => {
+        widgetWindow?.hide();
+        return { success: true };
+    });
+
     ipcMain.on(Channels.SendAudioData, (event, buffer: ArrayBuffer) => {
         const buf = Buffer.from(buffer);
         audioService.emit('audio-data', buf);
@@ -402,7 +457,5 @@ app.on('window-all-closed', () => {
         app.quit();
     }
 });
-
-let isQuitting = false;
 
 
