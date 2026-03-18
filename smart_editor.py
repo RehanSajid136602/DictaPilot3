@@ -1171,17 +1171,20 @@ def _llm_updated_transcript(
     app_id: Optional[str] = None,
     transcription_confidence: Optional[float] = None,
 ) -> Optional[Tuple[str, str]]:
-    api_key = os.getenv("GROQ_API_KEY")
+    api_key = os.getenv("NVIDIA_API_KEY")
     if not api_key:
         return None
 
     try:
-        from groq import Groq
+        from openai import OpenAI
     except Exception:
         return None
 
-    model = os.getenv("GROQ_CHAT_MODEL", "openai/gpt-oss-120b")
-    client = Groq(api_key=api_key)
+    model = os.getenv("NVIDIA_CHAT_MODEL", "nvidia/nemotron-3-8b-instruct")
+    client = OpenAI(
+        base_url="https://integrate.api.nvidia.com/v1",
+        api_key=api_key
+    )
 
     tone = (tone or "polite").strip().lower()
     language = (language or "english").strip().lower()

@@ -44,8 +44,8 @@ function getDefaultSettings(): DesktopSettings {
         SMART_MODE: 'llm',
         LLM_ALWAYS_CLEAN: '1',
         DICTATION_MODE: 'accurate',
-        GROQ_WHISPER_MODEL: 'whisper-large-v3-turbo',
-        GROQ_CHAT_MODEL: 'openai/gpt-oss-120b',
+        NVIDIA_WHISPER_MODEL: 'openai/whisper-large-v3',
+        NVIDIA_CHAT_MODEL: 'nvidia/nemotron-3-8b-instruct',
         AUDIO_INPUT_DEVICE_ID: 'default',
     };
 }

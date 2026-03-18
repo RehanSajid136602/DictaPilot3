@@ -43,7 +43,7 @@ a = Analysis(
         'numpy',
         
         # API client
-        'groq',
+        'openai',
         
         # Hotkey dependencies
         'keyboard',

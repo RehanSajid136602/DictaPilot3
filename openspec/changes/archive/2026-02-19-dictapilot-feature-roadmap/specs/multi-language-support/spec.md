@@ -5,7 +5,7 @@ The system SHALL detect the language being spoken and switch transcription appro
 
 #### Scenario: Single language dictation
 - **WHEN** user speaks in a consistent language
-- **THEN** system detects language via Groq API
+- **THEN** system detects language via NVIDIA NIM API
 - **AND** transcribes with correct language model
 
 #### Scenario: Language switch during dictation

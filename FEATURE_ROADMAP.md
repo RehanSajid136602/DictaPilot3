@@ -85,8 +85,8 @@
  
  - **Personal Dictionary**: SQLite database with word frequency tracking
  - **Snippet Library**: JSON-based storage with Jinja2 template engine
- - **Tone Adjustment**: LLM-based tone transformation using Groq API with app context
- - **Multi-Language**: Extend Groq API calls with automatic language detection
+ - **Tone Adjustment**: LLM-based tone transformation using NVIDIA NIM API with app context
+ - **Multi-Language**: Extend NVIDIA NIM API calls with automatic language detection
  - **Sync**: Optional cloud backend (Firebase/Supabase) or local network sync
  - **Mobile**: React Native or Flutter for cross-platform development
  - **Metrics**: Real-time WPM calculation during transcription with dashboard integration

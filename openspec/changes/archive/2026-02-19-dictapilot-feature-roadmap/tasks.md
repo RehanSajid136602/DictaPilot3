@@ -23,7 +23,7 @@
 
 - [x] 1.3.1 Enhance app_context.py for application type detection
 - [x] 1.3.2 Create tone profiles (professional, casual, technical)
-- [x] 1.3.3 Integrate Groq API tone transformation
+- [x] 1.3.3 Integrate NVIDIA NIM API tone transformation
 - [x] 1.3.4 Add voice command for temporary tone override
 - [ ] 1.3.5 Create tone preference settings UI
 
@@ -68,7 +68,7 @@
 
 ### 3.1 Multi-Language Support Implementation
 
-- [x] 3.1.1 Integrate Groq API language detection
+- [x] 3.1.1 Integrate NVIDIA NIM API language detection
 - [x] 3.1.2 Add seamless language switching during dictation
 - [x] 3.1.3 Create language preference per application
 - [x] 3.1.4 Add support for 100+ languages

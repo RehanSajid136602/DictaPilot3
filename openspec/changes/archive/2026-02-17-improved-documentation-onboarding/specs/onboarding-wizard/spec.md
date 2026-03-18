@@ -16,7 +16,7 @@ The onboarding wizard SHALL guide users through configuring API key, hotkey, and
 
 #### Scenario: User configures API key
 - **WHEN** user reaches the API key page
-- **THEN** they can enter their Groq API key and the wizard validates it
+- **THEN** they can enter their NVIDIA API key and the wizard validates it
 
 #### Scenario: User configures hotkey
 - **WHEN** user reaches the hotkey page

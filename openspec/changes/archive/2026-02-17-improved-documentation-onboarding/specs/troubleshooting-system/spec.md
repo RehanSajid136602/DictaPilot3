@@ -31,7 +31,7 @@ The system SHALL provide an FAQ section answering common questions about feature
 
 #### Scenario: User finds answer about offline usage
 - **WHEN** user wonders if DictaPilot works offline
-- **THEN** the FAQ explains that it requires internet for Groq API but can use local whisper.cpp
+- **THEN** the FAQ explains that it requires internet for NVIDIA NIM API but can use local whisper.cpp
 
 #### Scenario: User finds answer about privacy
 - **WHEN** user asks about data privacy
@@ -42,7 +42,7 @@ The troubleshooting guide SHALL provide diagnostic commands users can run to che
 
 #### Scenario: User checks API connectivity
 - **WHEN** user suspects API connection issues
-- **THEN** the guide provides a command to test Groq API connectivity
+- **THEN** the guide provides a command to test NVIDIA NIM API connectivity
 
 #### Scenario: User checks audio device
 - **WHEN** user suspects microphone issues

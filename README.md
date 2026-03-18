@@ -38,13 +38,13 @@ cd DictaPilot
 setup\setup_windows.bat
 
 # 3. Add API key to .env
-echo "GROQ_API_KEY=your_key_here" > .env
+echo "NVIDIA_API_KEY=your_key_here" > .env
 
 # 4. Start dictating
 python app.py
 ```
 
-**Get your free API key:** [console.groq.com](https://console.groq.com)
+**Get your free API key:** [build.nvidia.com](https://build.nvidia.com)
 
 **Detailed guide:** [Quick Start Guide](docs/quick-start.md)
 
@@ -100,7 +100,7 @@ As you speak, a preview window shows your transcription in real-time. When you r
 
 **Minimal setup:**
 ```bash
-GROQ_API_KEY=your_key_here  # Required
+NVIDIA_API_KEY=your_key_here  # Required
 HOTKEY=f9                   # Optional (default: f9)
 ```
 
@@ -172,7 +172,7 @@ We welcome contributions! See [Contributing Guide](docs/developer/contributing.m
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `GROQ_API_KEY` | _(required)_ | Groq API key from console.groq.com |
+| `NVIDIA_API_KEY` | _(required)_ | NVIDIA API key from build.nvidia.com |
 | `HOTKEY` | `f9` | Global hotkey for recording |
 | `SMART_EDIT` | `1` | Enable smart editing (1/0) |
 | `SMART_MODE` | `llm` | Editing mode: `llm` or `heuristic` |
@@ -233,7 +233,7 @@ We welcome contributions! See [Contributing Guide](docs/developer/contributing.m
 | `DICTATION_MODE` | `accurate` | Mode: `speed`, `balanced`, `accurate` |
 | `CLEANUP_LEVEL` | `aggressive` | Cleanup: `basic`, `balanced`, `aggressive` |
 | `INSTANT_REFINE` | `1` | Fast paste then background refinement |
-| `GROQ_WHISPER_MODEL` | `whisper-large-v3-turbo` | Transcription model |
+| `NVIDIA_WHISPER_MODEL` | `openai/whisper-large-v3` | Transcription model |
 
 **See all 40+ options:** Check `.env.example` or [Configuration Guide](docs/quick-start.md#configuration)
 
@@ -250,9 +250,9 @@ MIT License - see [LICENSE](LICENSE) file.
 
 ## 🙏 Credits
 
-**Original Author:** [Rohan Sharvesh](https://github.com/RohanSharvesh)  
-**Fork Maintainer:** Rehan  
-**Original Project:** [WhisperGroq](https://github.com/rohansharvesh/WhisperGroq)
+**Original Author:** [Rohan Sharvesh](https://github.com/RohanSharvesh)
+**Fork Maintainer:** Rehan
+**Original Project:** [WhisperGroq](https://github.com/rohansharvesh/WhisperGroq) (now uses NVIDIA NIM)
 
 ## 🔗 Links
 
@@ -262,5 +262,4 @@ MIT License - see [LICENSE](LICENSE) file.
 - **Discord:** Planned
 
 ---
-
 **Made with ❤️ for developers who prefer speaking to typing.**

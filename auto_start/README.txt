@@ -16,7 +16,7 @@ PREREQUISITES
    - Windows: `setup\setup_windows.bat`
    - Linux: `./setup/setup_linux.sh`
    - macOS: `./setup/setup_macos.command`
-3. `.env` contains `GROQ_API_KEY`
+3. `.env` contains `NVIDIA_API_KEY`
 
 USAGE
 -----

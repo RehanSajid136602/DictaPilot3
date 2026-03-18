@@ -30,28 +30,28 @@ const toggleOptions: DesktopSettingOption[] = [
 
 export const DESKTOP_SETTING_DEFINITIONS: DesktopSettingDefinition[] = [
     {
-        key: 'GROQ_API_KEY',
-        label: 'Groq API Key',
-        description: 'API key used for Groq transcription and chat cleanup.',
+        key: 'NVIDIA_API_KEY',
+        label: 'NVIDIA API Key',
+        description: 'API key used for NVIDIA NIM transcription and chat cleanup.',
         group: 'Models',
         input: 'password',
-        placeholder: 'gsk_...',
+        placeholder: 'nvapi-...',
     },
     {
-        key: 'GROQ_WHISPER_MODEL',
-        label: 'Groq Whisper Model',
-        description: 'Transcription model sent to Groq audio transcription.',
+        key: 'NVIDIA_WHISPER_MODEL',
+        label: 'NVIDIA Whisper Model',
+        description: 'Transcription model sent to NVIDIA NIM audio transcription.',
         group: 'Models',
         input: 'text',
-        placeholder: 'whisper-large-v3-turbo',
+        placeholder: 'openai/whisper-large-v3',
     },
     {
-        key: 'GROQ_CHAT_MODEL',
-        label: 'Groq Chat Model',
+        key: 'NVIDIA_CHAT_MODEL',
+        label: 'NVIDIA Chat Model',
         description: 'Chat model used for smart cleanup and command interpretation.',
         group: 'Models',
         input: 'text',
-        placeholder: 'openai/gpt-oss-120b',
+        placeholder: 'nvidia/nemotron-3-8b-instruct',
     },
     {
         key: 'HOTKEY',
@@ -591,7 +591,7 @@ export const DESKTOP_SETTING_DEFINITIONS: DesktopSettingDefinition[] = [
 ];
 
 const desktopSettingDefaults: DesktopSettings = {
-    GROQ_API_KEY: '',
+    NVIDIA_API_KEY: '',
     HOTKEY: 'f9',
     SMART_EDIT: '1',
     SMART_MODE: 'llm',
@@ -624,8 +624,8 @@ const desktopSettingDefaults: DesktopSettings = {
     PERSONAL_DICTIONARY_PATH: '',
     SNIPPETS_PATH: '',
     PROFILE_BUNDLE_PATH: '',
-    GROQ_WHISPER_MODEL: 'whisper-large-v3-turbo',
-    GROQ_CHAT_MODEL: 'openai/gpt-oss-120b',
+    NVIDIA_WHISPER_MODEL: 'openai/whisper-large-v3',
+    NVIDIA_CHAT_MODEL: 'nvidia/nemotron-3-8b-instruct',
     STREAMING_ENABLED: '1',
     STREAMING_CHUNK_DURATION: '1.5',
     STREAMING_CHUNK_OVERLAP: '0.3',

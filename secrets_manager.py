@@ -412,7 +412,7 @@ if __name__ == "__main__":
     secrets = APISecretsManager()
 
     # Example usage
-    service_name = "groq"
+    service_name = "nvidia"
     api_key = "your-api-key-here"
 
     print(f"Platform: {platform.system()}")

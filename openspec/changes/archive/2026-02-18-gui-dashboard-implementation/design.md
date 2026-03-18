@@ -36,7 +36,7 @@ Constraints:
 
 **Non-Goals:**
 - Changing core recording, transcription, or paste functionality
-- Modifying external API integrations (Groq, OpenAI)
+- Modifying external API integrations (NVIDIA NIM, OpenAI)
 - Replacing the floating indicator bar (it remains as minimal recording UI)
 - Adding new transcription features (focus is UI/UX only)
 - Supporting mobile platforms (responsive down to ~900px minimum)

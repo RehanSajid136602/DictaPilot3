@@ -109,19 +109,19 @@ class HealthChecker:
 
     def _check_api_key(self):
         """Check if API key is set"""
-        api_key = os.getenv("GROQ_API_KEY")
+        api_key = os.getenv("NVIDIA_API_KEY")
         if api_key and len(api_key) > 10:  # At least some length
             self.results.append(DiagnosticResult(
-                name="GROQ API Key",
+                name="NVIDIA API Key",
                 passed=True,
                 message="API key is set and appears valid",
                 severity="info"
             ))
         else:
             self.results.append(DiagnosticResult(
-                name="GROQ API Key",
+                name="NVIDIA API Key",
                 passed=False,
-                message="GROQ_API_KEY environment variable not set or invalid",
+                message="NVIDIA_API_KEY environment variable not set or invalid",
                 severity="warning"
             ))
 
@@ -278,7 +278,7 @@ class HealthChecker:
     def _check_required_packages(self):
         """Check if all required packages are installed"""
         required_packages = [
-            'groq',
+            'openai',
             'sounddevice',
             'soundfile',
             'numpy',
@@ -334,40 +334,43 @@ class HealthChecker:
     def _check_model_availability(self):
         """Check if transcription models are available"""
         try:
-            # Test basic Groq functionality
-            api_key = os.getenv("GROQ_API_KEY")
+            # Test basic NVIDIA functionality
+            api_key = os.getenv("NVIDIA_API_KEY")
             if not api_key:
                 self.results.append(DiagnosticResult(
                     name="Model Availability",
                     passed=False,
-                    message="GROQ_API_KEY not set - cannot test model availability",
+                    message="NVIDIA_API_KEY not set - cannot test model availability",
                     severity="warning"
                 ))
                 return
 
-            from groq import Groq
-            client = Groq(api_key=api_key)
+            from openai import OpenAI
+            client = OpenAI(
+                base_url="https://integrate.api.nvidia.com/v1",
+                api_key=api_key
+            )
 
             # Don't actually transcribe, just test connection
             # For now, just check if client can be created
             self.results.append(DiagnosticResult(
                 name="Model Availability",
                 passed=True,
-                message="Groq client initialized successfully",
+                message="NVIDIA client initialized successfully",
                 severity="info"
             ))
         except ImportError:
             self.results.append(DiagnosticResult(
                 name="Model Availability",
                 passed=False,
-                message="Groq package not installed",
+                message="OpenAI package not installed (needed for NVIDIA NIM)",
                 severity="error"
             ))
         except Exception as e:
             self.results.append(DiagnosticResult(
                 name="Model Availability",
                 passed=False,
-                message=f"Groq connection failed: {str(e)}",
+                message=f"NVIDIA connection failed: {str(e)}",
                 severity="error"
             ))
 

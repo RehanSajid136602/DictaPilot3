@@ -32,7 +32,7 @@ User selects text, triggers command hotkey, speaks a command (rewrite/fix/transl
   - [ ] Timeout and empty-selection handling.
 - [ ] Add transform function in `smart_editor.py`:
   - [ ] `llm_transform_selected(selected_text, voice_command, context)`.
-  - [ ] Reuse Groq JSON response style.
+  - [ ] Reuse NVIDIA JSON response style.
   - [ ] Enforce safe output contract (string result, fallback on invalid response).
 - [ ] Replace selected text via existing paste backend path (`paste_utils.py`).
 - [ ] Add logging + storage entry for command-mode action (new action type if needed).

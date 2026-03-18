@@ -9,4 +9,3 @@ export * from './services/sessionService';
 export * from './services/syncQueueService';
 export * from './services/textInsertionService';
 export * from './services/editingService';
-export * from './services/groqProvider';

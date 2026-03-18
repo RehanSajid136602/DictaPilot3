@@ -77,7 +77,7 @@ if not SETUP_COMPLETED and "--no-wizard" not in sys.argv:
         # Reload environment after wizard
         load_dotenv(override=True)
     except ImportError:
-        print("First run detected. Please set GROQ_API_KEY in .env file or environment.")
+        print("First run detected. Please set NVIDIA_API_KEY in .env file or environment.")
         print("Continuing with manual setup.")
     except Exception as e:
         print(f"Warning: Could not launch wizard: {e}")
@@ -122,21 +122,16 @@ except Exception:
 # load environment variables from .env (if present)
 load_dotenv()
 
-try:
-    from groq import Groq
-except Exception:
-    Groq = None
+_NVIDIA_CLIENT = None
 
-_GROQ_CLIENT = None
-
-API_KEY = os.getenv("GROQ_API_KEY")
+API_KEY = os.getenv("NVIDIA_API_KEY")
 HOTKEY = os.getenv("HOTKEY", "f9")  # default hotkey: F9 (press-and-hold)
-GROQ_WHISPER_MODEL = (
-    os.getenv("GROQ_WHISPER_MODEL", "whisper-large-v3-turbo").strip()
-    or "whisper-large-v3-turbo"
+NVIDIA_WHISPER_MODEL = (
+    os.getenv("NVIDIA_WHISPER_MODEL", "openai/whisper-large-v3").strip()
+    or "openai/whisper-large-v3"
 )
-GROQ_CHAT_MODEL = (
-    os.getenv("GROQ_CHAT_MODEL", "openai/gpt-oss-120b").strip() or "openai/gpt-oss-120b"
+NVIDIA_CHAT_MODEL = (
+    os.getenv("NVIDIA_CHAT_MODEL", "nvidia/nemotron-3-8b-instruct").strip() or "nvidia/nemotron-3-8b-instruct"
 )
 
 
@@ -818,21 +813,24 @@ class Recorder:
         return outpath
 
 
-def transcribe_with_groq(audio_path: str):
-    if Groq is None:
-        raise RuntimeError("Groq package not installed or failed to import")
+def transcribe_with_nvidia(audio_path: str):
+    if OpenAI is None:
+        raise RuntimeError("OpenAI package not installed or failed to import (needed for NVIDIA NIM)")
     if not API_KEY:
-        raise RuntimeError("Set GROQ_API_KEY environment variable first")
+        raise RuntimeError("Set NVIDIA_API_KEY environment variable first")
 
-    global _GROQ_CLIENT
-    if _GROQ_CLIENT is None:
-        _GROQ_CLIENT = Groq(api_key=API_KEY)
-    client = _GROQ_CLIENT
+    global _NVIDIA_CLIENT
+    if _NVIDIA_CLIENT is None:
+        _NVIDIA_CLIENT = OpenAI(
+            base_url="https://integrate.api.nvidia.com/v1",
+            api_key=API_KEY
+        )
+    client = _NVIDIA_CLIENT
     with open(audio_path, "rb") as f:
         audio_bytes = f.read()
     resp = client.audio.transcriptions.create(
         file=(os.path.basename(audio_path), audio_bytes),
-        model=GROQ_WHISPER_MODEL,
+        model=NVIDIA_WHISPER_MODEL,
         temperature=0,
         response_format="verbose_json",
     )
@@ -2203,7 +2201,7 @@ def _setup_dictation_pipeline(gui, recorder, processing_event, shutdown_event, c
                     return
                 
                 gui.update(("processing", "Processing audio..."))
-                text = transcribe_with_groq(audio_path)
+                text = transcribe_with_nvidia(audio_path)
                 
                 if not text:
                     text = "(no transcription returned)"
@@ -2439,8 +2437,8 @@ def main():
         )
         if SMART_EDIT and SMART_MODE == "llm":
             cleanup_mode = "always" if LLM_ALWAYS_CLEAN else "intent-only"
-            print(f"LLM cleanup: {cleanup_mode} (chat_model={GROQ_CHAT_MODEL})")
-        print(f"Transcription model: {GROQ_WHISPER_MODEL}")
+            print(f"LLM cleanup: {cleanup_mode} (chat_model={NVIDIA_CHAT_MODEL})")
+        print(f"Transcription model: {NVIDIA_WHISPER_MODEL}")
         print(f"Hotkey backend preference: {HOTKEY_BACKEND}")
         print(f"Dictation mode: {DICTATION_MODE} (cleanup={CLEANUP_LEVEL})")
         print(

@@ -44,14 +44,14 @@ This installs all required dependencies.
 
 Create `.env` file in project root:
 ```powershell
-echo GROQ_API_KEY=your_api_key_here > .env
+echo NVIDIA_API_KEY=your_api_key_here > .env
 ```
 
 Or use Notepad:
 ```powershell
 notepad .env
 ```
-Add: `GROQ_API_KEY=your_api_key_here`
+Add: `NVIDIA_API_KEY=your_api_key_here`
 
 ### 5. Grant Microphone Permission
 
@@ -319,7 +319,7 @@ python --version
 
 ```bash
 # Faster transcription model
-GROQ_WHISPER_MODEL=whisper-large-v3-turbo
+NVIDIA_WHISPER_MODEL=openai/whisper-large-v3-turbo
 
 # Disable instant refine
 INSTANT_REFINE=0

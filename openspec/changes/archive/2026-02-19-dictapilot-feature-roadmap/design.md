@@ -3,7 +3,7 @@
 DictaPilot currently provides basic voice transcription with minimal personalization. This design addresses implementing 15 new features across 4 phases to match Wispr Flow's capabilities. The implementation will touch multiple modules: transcription handling, UI/dashboard, data storage, and potentially add new services for sync and mobile.
 
 **Current State:**
-- Basic real-time transcription using Groq API
+- Basic real-time transcription using NVIDIA NIM API
 - Simple app context detection for window titles
 - Local SQLite storage for transcriptions
 - Dashboard for viewing history and statistics
@@ -51,8 +51,8 @@ DictaPilot currently provides basic voice transcription with minimal personaliza
 **Rationale:** Most users work on single device; sync is optional enhancement. Local-first ensures functionality without cloud dependency.
 **Alternative Considered:** Mandatory cloud sync - adds complexity and privacy concerns.
 
-### 5. Multi-Language Detection: Groq API Language Parameter
-**Decision:** Use Groq API's language detection parameter for transcription.
+### 5. Multi-Language Detection: NVIDIA NIM API Language Parameter
+**Decision:** Use NVIDIA NIM API's language detection parameter for transcription.
 **Rationale:** Leverages existing API capabilities, no additional service needed.
 **Alternative Considered:** Separate language detection service - added complexity for marginal benefit.
 

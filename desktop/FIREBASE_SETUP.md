@@ -40,7 +40,7 @@ Each synced record includes metadata for:
    - `FIREBASE_PROJECT_ID`
    - `FIREBASE_AUTH_DOMAIN`
    - `GOOGLE_OAUTH_CLIENT_ID`
-   - `GROQ_API_KEY`
+   - `NVIDIA_API_KEY`
 3. Run `npm run build` from [desktop](/C:/Users/Admin/Documents/Dictapilot3/desktop).
 4. Run `npm run dev` from [desktop](/C:/Users/Admin/Documents/Dictapilot3/desktop).
 

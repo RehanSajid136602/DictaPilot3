@@ -6,7 +6,7 @@ Get DictaPilot3 up and running in under 5 minutes.
 
 - Python 3.10 or higher
 - Microphone
-- Groq API key (free at [console.groq.com](https://console.groq.com))
+- NVIDIA API key (free at [build.nvidia.com](https://build.nvidia.com))
 
 ## Step 1: Install Dependencies
 
@@ -36,22 +36,22 @@ setup\setup_windows.bat
 
 **Verification:** Check that Python packages are installed:
 ```bash
-python -c "import groq, sounddevice, PySide6; print('Dependencies OK')"
+python -c "import openai, sounddevice, PySide6; print('Dependencies OK')"
 ```
 
 ## Step 2: Configure API Key
 
-Get your free Groq API key from [console.groq.com](https://console.groq.com).
+Get your free NVIDIA API key from [build.nvidia.com](https://build.nvidia.com).
 
 Create a `.env` file in the project root:
 
 ```bash
-echo "GROQ_API_KEY=your_api_key_here" > .env
+echo "NVIDIA_API_KEY=your_api_key_here" > .env
 ```
 
 **Verification:** Test API connectivity:
 ```bash
-python -c "from groq import Groq; import os; from dotenv import load_dotenv; load_dotenv(); client = Groq(api_key=os.getenv('GROQ_API_KEY')); print('API key valid')"
+python -c "from openai import OpenAI; import os; from dotenv import load_dotenv; load_dotenv(); client = OpenAI(base_url='https://integrate.api.nvidia.com/v1', api_key=os.getenv('NVIDIA_API_KEY')); print('API key valid')"
 ```
 
 ## Step 3: Run DictaPilot

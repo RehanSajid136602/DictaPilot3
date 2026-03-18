@@ -23,7 +23,7 @@ This creates `venv`, installs dependencies, and creates `.env` from `.env.exampl
 --------------
 Open `.env` and set:
 
-  GROQ_API_KEY=your_real_key
+  NVIDIA_API_KEY=your_real_key
 
 4) START DICTAPILOT
 -------------------

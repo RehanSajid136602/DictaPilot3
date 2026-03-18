@@ -39,7 +39,7 @@ def record_audio(duration=None, callback=None) -> np.ndarray:
 
 ### transcriber.py
 
-Audio transcription using Groq Whisper API.
+Audio transcription using NVIDIA NIM Whisper API.
 
 #### Functions
 
@@ -47,7 +47,7 @@ Audio transcription using Groq Whisper API.
 ```python
 def transcribe_audio(audio_data: np.ndarray, sample_rate: int = 16000) -> str:
     """
-    Transcribe audio using Groq Whisper API.
+    Transcribe audio using NVIDIA NIM Whisper API.
     
     Args:
         audio_data: numpy array of audio samples
@@ -68,17 +68,17 @@ def transcribe_audio(audio_data: np.ndarray, sample_rate: int = 16000) -> str:
     """
 ```
 
-**`get_groq_client()`**
+**`get_nvidia_client()`**
 ```python
-def get_groq_client() -> Groq:
+def get_nvidia_client() -> OpenAI:
     """
-    Get or create Groq API client.
+    Get or create NVIDIA API client.
     
     Returns:
-        Groq client instance
+        OpenAI client configured for NVIDIA NIM
     
     Raises:
-        ValueError: If GROQ_API_KEY not set
+        ValueError: If NVIDIA_API_KEY not set
     """
 ```
 
@@ -140,7 +140,7 @@ def llm_refine(
     context: Optional[DictationContext] = None
 ) -> str:
     """
-    Refine text using LLM (Groq Chat API).
+    Refine text using LLM (NVIDIA NIM Chat API).
     
     Args:
         text: Raw transcribed text
@@ -391,11 +391,11 @@ All configuration can be set via environment variables. See [Configuration Guide
 ### Core Settings
 
 ```python
-GROQ_API_KEY: str          # Required: Groq API key
-HOTKEY: str = "f9"         # Global hotkey
-SMART_EDIT: bool = True    # Enable smart editing
-SMART_MODE: str = "llm"    # "llm" or "heuristic"
-PASTE_MODE: str = "delta"  # "delta" or "full"
+NVIDIA_API_KEY: str          # Required: NVIDIA API key
+HOTKEY: str = "f9"           # Global hotkey
+SMART_EDIT: bool = True      # Enable smart editing
+SMART_MODE: str = "llm"      # "llm" or "heuristic"
+PASTE_MODE: str = "delta"    # "delta" or "full"
 ```
 
 ### Audio Settings

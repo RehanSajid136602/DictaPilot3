@@ -255,7 +255,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Delta paste for efficient text insertion
 - Context-aware profiles
 - Cross-platform support (Linux X11, macOS, Windows)
-- Groq Whisper integration for transcription
+- NVIDIA NIM Whisper integration for transcription
 - Floating window GUI with audio visualization
 - Transcription storage and search
 - Agent mode for developer workflows

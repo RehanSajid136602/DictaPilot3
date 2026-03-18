@@ -43,7 +43,7 @@ if errorlevel 1 goto :error
 
 echo.
 echo [INFO] Validating installed packages...
-python -c "import groq, sounddevice, soundfile, numpy, keyboard, pyperclip, dotenv, pynput, PIL, PySide6; print('[OK] All required packages verified.')"
+python -c "import openai, sounddevice, soundfile, numpy, keyboard, pyperclip, dotenv, pynput, PIL, PySide6; print('[OK] All required packages verified.')"
 if errorlevel 1 (
   echo [ERROR] One or more packages failed to import. Check the output above.
   pause
@@ -66,8 +66,8 @@ echo ============================================================
 echo.
 echo  NEXT STEPS:
 echo  1) Open .env and set your API key:
-echo       GROQ_API_KEY=your_key_here
-echo     Get a free key at: https://console.groq.com
+echo       NVIDIA_API_KEY=your_key_here
+echo     Get a free key at: https://build.nvidia.com
 echo.
 echo  2) Run DictaPilot using the VIRTUAL ENVIRONMENT Python:
 echo       venv\Scripts\python app.py

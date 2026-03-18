@@ -19,11 +19,11 @@ DictaPilot3 is a cross-platform voice dictation tool that lets you transcribe sp
 
 ### Does it work offline?
 
-No, DictaPilot3 requires internet connection for the Groq API. However, you can use local whisper.cpp as an alternative backend for offline transcription (requires additional setup).
+No, DictaPilot3 requires internet connection for the NVIDIA NIM API. However, you can use local whisper.cpp as an alternative backend for offline transcription (requires additional setup).
 
 ### Is it free?
 
-Yes, DictaPilot3 is free and open source (MIT license). You need a free Groq API key which has generous usage limits.
+Yes, DictaPilot3 is free and open source (MIT license). You need a free NVIDIA API key which has generous usage limits.
 
 ### What platforms are supported?
 
@@ -35,13 +35,13 @@ Yes, DictaPilot3 is free and open source (MIT license). You need a free Groq API
 
 ## Setup & Configuration
 
-### How do I get a Groq API key?
+### How do I get a NVIDIA API key?
 
-1. Visit [console.groq.com](https://console.groq.com)
+1. Visit [build.nvidia.com](https://build.nvidia.com)
 2. Sign up or log in (free)
 3. Create a new API key
-4. Copy the key (starts with `gsk_`)
-5. Add to `.env` file: `GROQ_API_KEY=your_key_here`
+4. Copy the key (starts with `nvapi_`)
+5. Add to `.env` file: `NVIDIA_API_KEY=your_key_here`
 
 ### Can I change the hotkey?
 
@@ -81,11 +81,11 @@ Yes, Whisper supports 100+ languages. The model auto-detects language, or you ca
 
 ### Is my audio sent to the cloud?
 
-Yes, audio is sent to Groq API for transcription. Groq's privacy policy applies. For offline transcription, use local whisper.cpp backend.
+Yes, audio is sent to NVIDIA NIM API for transcription. NVIDIA's privacy policy applies. For offline transcription, use local whisper.cpp backend.
 
 ### Can I use it for sensitive information?
 
-- Audio is sent to Groq API (cloud processing)
+- Audio is sent to NVIDIA NIM API (cloud processing)
 - Transcriptions stored locally
 - For maximum privacy, use local whisper.cpp backend
 - Don't use for passwords or highly sensitive data
@@ -306,12 +306,12 @@ Improve quality:
 - Reduce background noise
 - Speak clearly at normal pace
 - Use `DICTATION_MODE=accurate`
-- Try `GROQ_WHISPER_MODEL=whisper-large-v3`
+- Try `NVIDIA_WHISPER_MODEL=openai/whisper-large-v3`
 
 ### Why is it slow?
 
 Speed it up:
-- Use `GROQ_WHISPER_MODEL=whisper-large-v3-turbo`
+- Use `NVIDIA_WHISPER_MODEL=openai/whisper-large-v3-turbo`
 - Set `INSTANT_REFINE=0`
 - Use `SMART_MODE=heuristic`
 - Use `PASTE_MODE=delta`
@@ -374,7 +374,7 @@ Yes, create `dictionary.json` in config directory:
 
 Create `profile_bundle.json` in config directory. See [Profile Ingestion Spec](../docs/profile-ingestion-spec.md) for format.
 
-### Can I use local Whisper instead of Groq?
+### Can I use local Whisper instead of NVIDIA?
 
 Yes, but requires additional setup:
 1. Install whisper.cpp

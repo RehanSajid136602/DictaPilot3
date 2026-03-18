@@ -38,7 +38,6 @@ import {
     textInsertionService,
     transcriptionService,
     validateFirebaseProviderConfig,
-    GroqProvider,
 } from 'dictapilot-desktop-backend';
 import { keyboard, Key } from '@nut-tree-fork/nut-js';
 import Store from 'electron-store';
@@ -217,13 +216,8 @@ function configureRuntimeSettings(): void {
     const settings = settingsService.getSettings();
     currentHotkey = (settings.HOTKEY || 'F9').toUpperCase();
 
-    const groqApiKey = settings.GROQ_API_KEY || process.env.GROQ_API_KEY || '';
-    if (groqApiKey) {
-        transcriptionService.setProvider(new GroqProvider(groqApiKey));
-    } else {
-        transcriptionService.clearProvider();
-        console.warn('GROQ_API_KEY not found. Dictation will fall back until a key is available.');
-    }
+    // NVIDIA NIM provider is used automatically by transcriptionService
+    // No need to manually set provider - it uses NVIDIA_API_KEY from environment
 }
 
 async function pasteCommittedText(text: string): Promise<void> {

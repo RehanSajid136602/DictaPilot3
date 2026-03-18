@@ -1,6 +1,6 @@
 """
 DictaPilot Transcriber
-Handles transcription services with support for both Groq and local whisper.cpp
+Handles transcription services with support for both NVIDIA NIM and local whisper.cpp
 
 Original by: Rohan Sharvesh
 Fork maintained by: Rehan
@@ -32,16 +32,16 @@ import os
 import threading
 import subprocess
 import queue
-from typing import Optional, Callable
+from typing: Optional, Callable
 from pathlib import Path
 import tempfile
 
 try:
-    from groq import Groq
-    GROQ_AVAILABLE = True
+    from openai import OpenAI
+    NVIDIA_AVAILABLE = True
 except ImportError:
-    GROQ_AVAILABLE = False
-    Groq = None
+    NVIDIA_AVAILABLE = False
+    OpenAI = None
 
 
 class Transcriber:
@@ -49,44 +49,47 @@ class Transcriber:
     Unified transcription interface supporting multiple backends
     """
 
-    def __init__(self, backend="groq"):
+    def __init__(self, backend="nvidia"):
         self.backend = backend
-        self.api_key = os.getenv("GROQ_API_KEY")
-        self._groq_client = None
+        self.api_key = os.getenv("NVIDIA_API_KEY")
+        self._nvidia_client = None
 
         # Model settings
-        self.groq_whisper_model = os.getenv("GROQ_WHISPER_MODEL", "whisper-large-v3-turbo").strip() or "whisper-large-v3-turbo"
+        self.nvidia_whisper_model = os.getenv("NVIDIA_WHISPER_MODEL", "openai/whisper-large-v3").strip() or "openai/whisper-large-v3"
 
         # Local whisper.cpp settings (if available)
         self.whisper_cpp_path = os.getenv("WHISPER_CPP_PATH", "./whisper.cpp/main")
         self.whisper_cpp_model_path = os.getenv("WHISPER_CPP_MODEL_PATH", "./models/ggml-base.en.bin")
 
     def get_client(self):
-        """Get Groq client, creating if needed"""
-        if not self._groq_client and self.api_key:
-            self._groq_client = Groq(api_key=self.api_key)
-        return self._groq_client
+        """Get NVIDIA client, creating if needed"""
+        if not self._nvidia_client and self.api_key:
+            self._nvidia_client = OpenAI(
+                base_url="https://integrate.api.nvidia.com/v1",
+                api_key=self.api_key
+            )
+        return self._nvidia_client
 
     def transcribe(self, audio_path: str) -> Optional[str]:
         """
         Transcribe audio using the configured backend
         """
-        if self.backend == "groq":
-            return self.transcribe_groq(audio_path)
+        if self.backend == "nvidia":
+            return self.transcribe_nvidia(audio_path)
         elif self.backend == "local":
             return self.transcribe_local(audio_path)
         else:
             raise ValueError(f"Unsupported backend: {self.backend}")
 
-    def transcribe_groq(self, audio_path: str) -> Optional[str]:
+    def transcribe_nvidia(self, audio_path: str) -> Optional[str]:
         """
-        Transcribe audio using Groq Cloud API
+        Transcribe audio using NVIDIA NIM API
         """
-        if not GROQ_AVAILABLE:
-            raise RuntimeError("Groq package not installed or failed to import")
+        if not NVIDIA_AVAILABLE:
+            raise RuntimeError("OpenAI package not installed or failed to import (needed for NVIDIA NIM)")
 
         if not self.api_key:
-            raise RuntimeError("Set GROQ_API_KEY environment variable first")
+            raise RuntimeError("Set NVIDIA_API_KEY environment variable first")
 
         client = self.get_client()
 
@@ -96,7 +99,7 @@ class Transcriber:
 
             resp = client.audio.transcriptions.create(
                 file=(os.path.basename(audio_path), audio_bytes),
-                model=self.groq_whisper_model,
+                model=self.nvidia_whisper_model,
                 temperature=0,
                 response_format="verbose_json",
             )
@@ -109,7 +112,7 @@ class Transcriber:
             return str(resp)
 
         except Exception as e:
-            print(f"Groq transcription error: {e}", file=__import__('sys').stderr)
+            print(f"NVIDIA transcription error: {e}", file=__import__('sys').stderr)
             return None
 
     def transcribe_local(self, audio_path: str) -> Optional[str]:
@@ -161,7 +164,7 @@ class AsyncTranscriber:
     Asynchronous wrapper for transcription with worker thread
     """
 
-    def __init__(self, backend="groq"):
+    def __init__(self, backend="nvidia"):
         self.transcriber = Transcriber(backend)
         self.task_queue = queue.Queue()
         self.result_callbacks = {}  # task_id -> callback
@@ -234,17 +237,20 @@ class HealthChecker:
     """
 
     @staticmethod
-    def check_groq_health():
-        """Check if Groq API is accessible"""
-        if not GROQ_AVAILABLE:
-            return False, "Groq package not installed"
+    def check_nvidia_health():
+        """Check if NVIDIA API is accessible"""
+        if not NVIDIA_AVAILABLE:
+            return False, "OpenAI package not installed (needed for NVIDIA NIM)"
 
-        api_key = os.getenv("GROQ_API_KEY")
+        api_key = os.getenv("NVIDIA_API_KEY")
         if not api_key:
-            return False, "GROQ_API_KEY not set"
+            return False, "NVIDIA_API_KEY not set"
 
         try:
-            client = Groq(api_key=api_key)
+            client = OpenAI(
+                base_url="https://integrate.api.nvidia.com/v1",
+                api_key=api_key
+            )
             # Make a simple test call
             # We won't actually transcribe anything, just test connectivity
             return True, "OK"
@@ -268,8 +274,8 @@ class HealthChecker:
     @staticmethod
     def check_backend_health(backend: str):
         """Check health of the specified backend"""
-        if backend == "groq":
-            return HealthChecker.check_groq_health()
+        if backend == "nvidia":
+            return HealthChecker.check_nvidia_health()
         elif backend == "local":
             return HealthChecker.check_local_health()
         else:
@@ -281,12 +287,12 @@ if __name__ == "__main__":
     import time
 
     # Test transcription
-    transcriber = Transcriber(backend="groq")  # Will fail without API key
+    transcriber = Transcriber(backend="nvidia")  # Will fail without API key
 
     # Check health
     print("Testing backend health...")
-    is_healthy, message = HealthChecker.check_groq_health()
-    print(f"Groq health: {is_healthy}, {message}")
+    is_healthy, message = HealthChecker.check_nvidia_health()
+    print(f"NVIDIA health: {is_healthy}, {message}")
 
     is_healthy, message = HealthChecker.check_local_health()
     print(f"Local health: {is_healthy}, {message}")
@@ -295,7 +301,7 @@ if __name__ == "__main__":
     def result_callback(result):
         print(f"Async transcription result: {result}")
 
-    async_transcriber = AsyncTranscriber(backend="groq")
+    async_transcriber = AsyncTranscriber(backend="nvidia")
     async_transcriber.transcribe_async("dummy.wav", result_callback)
 
     # Give it a moment to process

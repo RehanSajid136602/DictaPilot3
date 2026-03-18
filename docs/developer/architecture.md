@@ -27,7 +27,7 @@ DictaPilot3 follows a modular architecture with clear separation of concerns:
                          ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                    Transcriber                              │
-│              (Groq Whisper API / local)                     │
+│              (NVIDIA NIM API / local)                       │
 └────────────────────────┬────────────────────────────────────┘
                          │
                          ▼
@@ -121,7 +121,7 @@ def record_audio(duration=None, callback=None):
 ```python
 def transcribe_audio(audio_data, sample_rate=16000):
     """
-    Transcribe audio using Groq Whisper API
+    Transcribe audio using NVIDIA NIM API
     
     Args:
         audio_data: numpy array of audio samples
@@ -134,20 +134,20 @@ def transcribe_audio(audio_data, sample_rate=16000):
 
 **Transcription Flow:**
 1. Convert numpy array to WAV format
-2. Send to Groq Whisper API
+2. Send to NVIDIA NIM Whisper API
 3. Parse JSON response
 4. Extract transcribed text
 5. Handle errors and retries
 
 **Backends:**
-- **Groq API** (default): Cloud-based Whisper
+- **NVIDIA NIM API** (default): Cloud-based Whisper
 - **Local whisper.cpp**: Offline transcription (requires setup)
 
 **Models:**
-- `whisper-large-v3-turbo`: Fast, good accuracy (default)
-- `whisper-large-v3`: Slower, best accuracy
-- `whisper-medium`: Balanced
-- `whisper-small`: Fastest, lower accuracy
+- `openai/whisper-large-v3-turbo`: Fast, good accuracy (default)
+- `openai/whisper-large-v3`: Slower, best accuracy
+- `openai/whisper-medium`: Balanced
+- `openai/whisper-small`: Fastest, lower accuracy
 
 ### 4. Smart Editor (`smart_editor.py`)
 
@@ -180,7 +180,7 @@ Raw Transcript
                           │   └─ Inline corrections
                           │
                           └─ LLM Mode (accurate)
-                              └─ Send to Groq Chat API
+                              └─ Send to NVIDIA NIM Chat API
                                   └─ Grammar, tone, cleanup
 ```
 
@@ -348,7 +348,7 @@ def save_config(config: DictaPilotConfig):
 
 4. Transcription
    └─► Audio sent to transcriber.py
-       └─► Groq Whisper API call
+       └─► NVIDIA NIM Whisper API call
            └─► JSON response parsed
                └─► Raw transcript extracted
 
@@ -359,7 +359,7 @@ def save_config(config: DictaPilotConfig):
        │   └─► If content: continue to cleanup
        └─► Cleanup pipeline
            ├─► Heuristic mode: regex-based cleanup
-           └─► LLM mode: Groq Chat API refinement
+           └─► LLM mode: NVIDIA NIM Chat API refinement
 
 6. Paste
    └─► Cleaned text → paste_utils.py

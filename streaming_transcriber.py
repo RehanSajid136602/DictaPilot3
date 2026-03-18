@@ -34,11 +34,11 @@ from dataclasses import dataclass, field
 import numpy as np
 
 try:
-    from groq import Groq
-    GROQ_AVAILABLE = True
+    from openai import OpenAI
+    NVIDIA_AVAILABLE = True
 except ImportError:
-    GROQ_AVAILABLE = False
-    Groq = None
+    NVIDIA_AVAILABLE = False
+    OpenAI = None
 
 from audio_buffer import AudioChunk, TextAssembler
 
@@ -103,24 +103,24 @@ class StreamingTranscriber:
     
     def __init__(self,
                  api_key: Optional[str] = None,
-                 model: str = "whisper-large-v3-turbo",
+                 model: str = "openai/whisper-large-v3",
                  max_retries: int = 2,
                  retry_delay: float = 0.5):
         """
         Initialize the streaming transcriber.
         
         Args:
-            api_key: Groq API key (defaults to GROQ_API_KEY env var)
+            api_key: NVIDIA API key (defaults to NVIDIA_API_KEY env var)
             model: Whisper model to use
             max_retries: Maximum retry attempts for failed chunks
             retry_delay: Delay between retries in seconds
         """
-        self.api_key = api_key or os.getenv("GROQ_API_KEY")
+        self.api_key = api_key or os.getenv("NVIDIA_API_KEY")
         self.model = model
         self.max_retries = max_retries
         self.retry_delay = retry_delay
         
-        self._groq_client = None
+        self._nvidia_client = None
         self._task_queue: queue.Queue = queue.Queue()
         self._worker_thread: Optional[threading.Thread] = None
         self._running = False
@@ -148,10 +148,13 @@ class StreamingTranscriber:
         self._error_callback = callback
     
     def get_client(self):
-        """Get or create Groq client"""
-        if not self._groq_client and self.api_key:
-            self._groq_client = Groq(api_key=self.api_key)
-        return self._groq_client
+        """Get or create NVIDIA client"""
+        if not self._nvidia_client and self.api_key:
+            self._nvidia_client = OpenAI(
+                base_url="https://integrate.api.nvidia.com/v1",
+                api_key=self.api_key
+            )
+        return self._nvidia_client
     
     def start(self):
         """Start the streaming worker thread"""
@@ -272,7 +275,7 @@ class StreamingTranscriber:
     
     def _transcribe_audio(self, audio_data: np.ndarray) -> Optional[str]:
         """
-        Transcribe audio data using Groq API.
+        Transcribe audio data using NVIDIA NIM API.
         
         Args:
             audio_data: Audio samples as numpy array
@@ -280,11 +283,11 @@ class StreamingTranscriber:
         Returns:
             Transcription text or None on failure
         """
-        if not GROQ_AVAILABLE:
-            raise RuntimeError("Groq package not installed or failed to import")
+        if not NVIDIA_AVAILABLE:
+            raise RuntimeError("OpenAI package not installed or failed to import (needed for NVIDIA NIM)")
         
         if not self.api_key:
-            raise RuntimeError("GROQ_API_KEY not set")
+            raise RuntimeError("NVIDIA_API_KEY not set")
         
         client = self.get_client()
         
@@ -453,4 +456,4 @@ if __name__ == "__main__":
     health = transcriber.get_health()
     print(f"Initial health: healthy={health.is_healthy}, fallback={health.fallback_mode}")
     
-    print("\nNote: To test with real audio, ensure GROQ_API_KEY is set.")
+    print("\nNote: To test with real audio, ensure NVIDIA_API_KEY is set.")

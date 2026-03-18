@@ -32,7 +32,7 @@ import os
 import json
 import platform
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing: Optional, Dict, Any
 from dataclasses import dataclass, field, asdict
 
 
@@ -57,11 +57,11 @@ def get_config_dir() -> Path:
 
 DEFAULT_CONFIG = {
     "hotkey": "f9",
-    "model": "whisper-large-v3-turbo",
+    "model": "openai/whisper-large-v3",
     "smart_mode": "llm",
     "smart_edit": True,
     "llm_always_clean": True,
-    "paste_mode": "full",
+    "paste_mode": "delta",
     "paste_backend": "auto",
     "hotkey_backend": "auto",
     "reset_transcript_each_recording": True,
@@ -70,7 +70,7 @@ DEFAULT_CONFIG = {
     "audio_device": "",
     "vad_enabled": False,
     "chunk_duration": 0.5,
-    "whisper_backend": "groq",
+    "whisper_backend": "nvidia",
     "ui_theme": "dark",  # "dark" or "light"
     "hold_to_talk": True,  # True for hold-to-talk, False for toggle
     "auto_copy_on_finalize": True,
@@ -122,7 +122,7 @@ DEFAULT_CONFIG = {
 @dataclass
 class DictaPilotConfig:
     hotkey: str = "f9"
-    model: str = "whisper-large-v3-turbo"
+    model: str = "openai/whisper-large-v3"
     smart_mode: str = "llm"
     smart_edit: bool = True
     llm_always_clean: bool = True
@@ -136,7 +136,7 @@ class DictaPilotConfig:
     audio_device: str = ""
     vad_enabled: bool = False
     chunk_duration: float = 0.5
-    whisper_backend: str = "groq"
+    whisper_backend: str = "nvidia"
     ui_theme: str = "dark"  # "dark" or "light"
     hold_to_talk: bool = True  # True for hold-to-talk, False for toggle
     auto_copy_on_finalize: bool = True
@@ -223,10 +223,9 @@ def load_config() -> DictaPilotConfig:
     config = DictaPilotConfig.load()
 
     env_overrides = {
-        "GROQ_API_KEY": os.getenv("GROQ_API_KEY"),
         "HOTKEY": os.getenv("HOTKEY"),
-        "GROQ_WHISPER_MODEL": os.getenv("GROQ_WHISPER_MODEL"),
-        "GROQ_CHAT_MODEL": os.getenv("GROQ_CHAT_MODEL"),
+        "NVIDIA_WHISPER_MODEL": os.getenv("NVIDIA_WHISPER_MODEL"),
+        "NVIDIA_CHAT_MODEL": os.getenv("NVIDIA_CHAT_MODEL"),
         "SMART_EDIT": os.getenv("SMART_EDIT"),
         "SMART_MODE": os.getenv("SMART_MODE"),
         "LLM_ALWAYS_CLEAN": os.getenv("LLM_ALWAYS_CLEAN"),
@@ -293,9 +292,9 @@ def load_config() -> DictaPilotConfig:
         if value is not None:
             if key == "HOTKEY":
                 config.hotkey = value
-            elif key == "GROQ_WHISPER_MODEL":
+            elif key == "NVIDIA_WHISPER_MODEL":
                 config.model = value
-            elif key == "GROQ_CHAT_MODEL":
+            elif key == "NVIDIA_CHAT_MODEL":
                 pass
             elif key == "SMART_EDIT":
                 config.smart_edit = value.lower() in ("1", "true", "yes")
@@ -445,7 +444,7 @@ def load_config() -> DictaPilotConfig:
 def apply_config_to_env(config: DictaPilotConfig) -> None:
     """Apply config settings to environment variables"""
     os.environ["HOTKEY"] = config.hotkey
-    os.environ["GROQ_WHISPER_MODEL"] = config.model
+    os.environ["NVIDIA_WHISPER_MODEL"] = config.model
     os.environ["SMART_MODE"] = config.smart_mode
     os.environ["SMART_EDIT"] = "1" if config.smart_edit else "0"
     os.environ["LLM_ALWAYS_CLEAN"] = "1" if config.llm_always_clean else "0"

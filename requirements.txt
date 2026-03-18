@@ -1,5 +1,5 @@
 # Core runtime dependencies for DictaPilot3 (Windows)
-groq
+openai
 sounddevice
 soundfile
 numpy

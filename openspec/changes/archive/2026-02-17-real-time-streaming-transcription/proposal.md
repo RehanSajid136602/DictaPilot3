@@ -38,7 +38,7 @@ DictaPilot3 currently uses batch processing that requires users to release the h
 - Modified: GUI components - Add live preview display
 
 **Dependencies:**
-- Groq API: Check if streaming API is available (or use alternative)
+- NVIDIA NIM API: Check if streaming API is available (or use alternative)
 - Existing: `sounddevice`, `numpy` (already used)
 - No new external dependencies required
 
@@ -92,13 +92,13 @@ User releases → Final audio → Batch transcription → Final result → Paste
 - Update FAQ with streaming questions
 
 **Risks:**
-- Groq may not support streaming API (need alternative or workaround)
+- NVIDIA NIM may not support streaming API (need alternative or workaround)
 - Increased API costs from dual-pass transcription
 - Network latency may affect user experience
 - Partial results may be less accurate than final
 
 **Mitigation:**
-- Research Groq streaming capabilities first
+- Research NVIDIA NIM streaming capabilities first
 - Make streaming optional (can disable)
 - Implement smart buffering for latency
 - Clear visual feedback about streaming vs final states

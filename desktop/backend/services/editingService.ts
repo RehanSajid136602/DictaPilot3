@@ -1,10 +1,13 @@
-import Groq from 'groq-sdk';
+import OpenAI from 'openai';
 import * as dotenv from 'dotenv';
 import * as path from 'path';
 
 dotenv.config({ path: path.join(__dirname, '../../../../.env') });
 
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY || '' });
+const nvidiaClient = new OpenAI({
+    baseURL: 'https://integrate.api.nvidia.com/v1',
+    apiKey: process.env.NVIDIA_API_KEY || ''
+});
 
 const SYSTEM_PROMPT = `
 You are a smart dictation editor. Your task is to clean up transcripts and execute voice commands within them.
@@ -49,19 +52,20 @@ export class EditingService {
     // Advanced LLM processing for final output
     async processSmart(text: string): Promise<string> {
         if (!text || text.trim().length === 0) return text;
-        if (!process.env.GROQ_API_KEY) {
-            console.warn("GROQ_API_KEY not found, falling back to basic editing.");
+        if (!process.env.NVIDIA_API_KEY) {
+            console.warn("NVIDIA_API_KEY not found, falling back to basic editing.");
             return this.process(text);
         }
 
         try {
             console.log("LLM Smart Edit starting...");
-            const completion = await groq.chat.completions.create({
+            const model = process.env.NVIDIA_CHAT_MODEL || 'nvidia/nemotron-3-8b-instruct';
+            const completion = await nvidiaClient.chat.completions.create({
                 messages: [
                     { role: 'system', content: SYSTEM_PROMPT },
                     { role: 'user', content: text }
                 ],
-                model: 'llama3-8b-8192',
+                model: model,
                 temperature: 0.1,
                 max_tokens: 2048,
             });

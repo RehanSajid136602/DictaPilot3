@@ -9,10 +9,10 @@ Run these commands to check system status:
 ```bash
 # Check Python and dependencies
 python --version
-python -c "import groq, sounddevice, PySide6; print('Dependencies OK')"
+python -c "import openai, sounddevice, PySide6; print('Dependencies OK')"
 
 # Check API connectivity
-python -c "from groq import Groq; import os; from dotenv import load_dotenv; load_dotenv(); client = Groq(api_key=os.getenv('GROQ_API_KEY')); print('API OK')"
+python -c "from openai import OpenAI; import os; from dotenv import load_dotenv; load_dotenv(); client = OpenAI(base_url='https://integrate.api.nvidia.com/v1', api_key=os.getenv('NVIDIA_API_KEY')); print('API OK')"
 
 # List audio devices
 python -c "import sounddevice; print(sounddevice.query_devices())"
@@ -401,40 +401,40 @@ PASTE_MODE=delta  # Only sends changed characters
 cat .env
 
 # Should contain:
-GROQ_API_KEY=gsk_...
+NVIDIA_API_KEY=nvapi_...
 ```
 
 **2. Get valid API key:**
 
-- Visit [console.groq.com](https://console.groq.com)
+- Visit [build.nvidia.com](https://build.nvidia.com)
 - Sign up or log in
 - Create new API key
-- Copy entire key (starts with `gsk_`)
+- Copy entire key (starts with `nvapi_`)
 
 **3. Check for whitespace:**
 
 ```bash
 # Remove any spaces or newlines
-GROQ_API_KEY=gsk_your_key_here
+NVIDIA_API_KEY=your_key_here
 ```
 
 **4. Test API key:**
 
 ```bash
-python -c "from groq import Groq; import os; from dotenv import load_dotenv; load_dotenv(); client = Groq(api_key=os.getenv('GROQ_API_KEY')); print('API key valid')"
+python -c "from openai import OpenAI; import os; from dotenv import load_dotenv; load_dotenv(); client = OpenAI(base_url='https://integrate.api.nvidia.com/v1', api_key=os.getenv('NVIDIA_API_KEY')); print('API key valid')"
 ```
 
 **5. Check internet connection:**
 
 ```bash
-ping console.groq.com
+ping build.nvidia.com
 ```
 
 **6. Check for rate limits:**
 
 - Free tier has usage limits
 - Wait a few minutes and try again
-- Check Groq console for quota
+- Check NVIDIA console for quota
 
 ---
 
@@ -537,7 +537,7 @@ DICTATION_MODE=accurate
 **4. Try different model:**
 
 ```bash
-GROQ_WHISPER_MODEL=whisper-large-v3  # More accurate but slower
+NVIDIA_WHISPER_MODEL=openai/whisper-large-v3  # More accurate but slower
 ```
 
 **5. Check internet speed:**
@@ -566,7 +566,7 @@ CLEANUP_STRICTNESS=conservative
 **1. Use faster model:**
 
 ```bash
-GROQ_WHISPER_MODEL=whisper-large-v3-turbo
+NVIDIA_WHISPER_MODEL=openai/whisper-large-v3-turbo
 ```
 
 **2. Disable instant refine:**

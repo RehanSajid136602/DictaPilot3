@@ -4,12 +4,12 @@ DictaPilot3 currently uses batch transcription - users must release the hotkey b
 
 **Current Architecture:**
 - `recorder.py`: Captures audio via `sounddevice`, stores in memory buffer, saves to temp file on stop
-- `transcriber.py`: `Transcriber` class with `transcribe()` method - takes audio file path, calls Groq API
-- `app.py`: `Recorder` class handles recording, `transcribe_with_groq()` calls API after recording stops
+- `transcriber.py`: `Transcriber` class with `transcribe()` method - takes audio file path, calls NVIDIA NIM API
+- `app.py`: `Recorder` class handles recording, `transcribe_with_nvidia()` calls API after recording stops
 - GUI: Shows audio bars during recording, switches to "processing" state after release
 
 **Constraints:**
-- Groq API doesn't support true streaming audio transcription (no WebSocket/streaming endpoint)
+- NVIDIA NIM API doesn't support true streaming audio transcription (no WebSocket/streaming endpoint)
 - Must work within existing PySide6 GUI framework
 - Must maintain or improve transcription accuracy
 - Should gracefully degrade if network issues occur
@@ -25,7 +25,7 @@ DictaPilot3 currently uses batch transcription - users must release the hotkey b
 - Graceful fallback to batch mode if streaming fails
 
 **Non-Goals:**
-- True WebSocket-based streaming (Groq API doesn't support it)
+- True WebSocket-based streaming (NVIDIA NIM API doesn't support it)
 - Real-time transcription latency < 100ms (API-bound)
 - Changing the hotkey mechanism or core GUI architecture
 - Supporting multiple simultaneous transcription sessions
@@ -37,7 +37,7 @@ DictaPilot3 currently uses batch transcription - users must release the hotkey b
 **Decision:** Use fixed-size audio chunks (default 1.5s) with overlap (0.3s) for streaming preview.
 
 **Rationale:** 
-- Groq API only accepts complete audio files - we simulate streaming by sending chunks
+- NVIDIA NIM API only accepts complete audio files - we simulate streaming by sending chunks
 - Overlap prevents word cutoff at chunk boundaries
 - 1.5s chunks balance perceived latency vs. API call overhead
 
@@ -132,7 +132,7 @@ streaming_final_pass: bool = True  # run final accuracy pass
 **Impact:** Rapid text updates may cause UI flicker.
 **Mitigation:** Debounce UI updates (100ms); smooth text transitions; show stable prefix.
 
-### Risk: Groq Rate Limiting
+### Risk: NVIDIA NIM Rate Limiting
 **Impact:** Too many chunk API calls may hit rate limits.
 **Mitigation:** Track API call rate; back off if approaching limits; combine chunks if needed.
 

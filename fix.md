@@ -1,16 +1,16 @@
 # DictaPilot Desktop App - Status & Fix Report
 
 ## 📋 Summary of What Has Occurred
-We initiated a major migration to move DictaPilot from a Python-based prototype to a robust **Electron + React (Vite) + TypeScript** desktop application. The goal was to implement a modern, high-end "Cyber-Glass" UI, integrate real-time streaming with the Groq API, and create a perfectly synchronized floating widget without the overhead of running parallel Python processes.
+We initiated a major migration to move DictaPilot from a Python-based prototype to a robust **Electron + React (Vite) + TypeScript** desktop application. The goal was to implement a modern, high-end "Cyber-Glass" UI, integrate real-time streaming with the NVIDIA NIM API, and create a perfectly synchronized floating widget without the overhead of running parallel Python processes.
 
 ## ✅ What Has Been Done
 1. **Phase 1 & 2 (UI Architecture):** 
    - Rebuilt the main window into a single "Center Stage" view with a toggleable frosted-glass sidebar for Settings and History.
    - Connected the React frontend to the Electron `main` process using IPC (`dictationAPI` in `preload`).
 2. **Phase 3 (Streaming Transcription):**
-   - Implemented `GroqProvider` in the Node backend. It collects raw audio chunks and periodically (every 2 seconds) sends them to Groq's Whisper model to create a live streaming effect.
+   - Implemented `NVIDIAProvider` in the Node backend. It collects raw audio chunks and periodically (every 2 seconds) sends them to NVIDIA's Whisper model to create a live streaming effect.
 3. **Phase 4 (Smart Editing):**
-   - Ported the Python LLM logic into a Node `EditingService`. When dictation finishes, it sends the raw text to `llama3-8b-8192` to process commands like "delete that" and strip filler words before delivering the final text.
+   - Ported the Python LLM logic into a Node `EditingService`. When dictation finishes, it sends the raw text to `nvidia/nemotron-3-8b-instruct` to process commands like "delete that" and strip filler words before delivering the final text.
 4. **Phase 5 (Native Floating Widget & Hotkeys):**
    - Dropped the idea of running the Python PySide6 widget in the background. Instead, built a **Native Electron Widget** (`widgetWindow`) that mirrors the state and amplitude of the main app.
    - Replaced Electron's native `globalShortcut` with `node-global-key-listener` to support **true Press-and-Hold** behavior for the F9 key (triggering start on DOWN, stop on UP).

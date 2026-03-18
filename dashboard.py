@@ -146,7 +146,7 @@ class DictaPilotDashboard(QMainWindow):
             layout.addRow("", chk)
             self.inputs[key] = chk
 
-        add_line_edit("GROQ_API_KEY", "GROQ API Key:", echo_mode=QLineEdit.EchoMode.Password)
+        add_line_edit("NVIDIA_API_KEY", "NVIDIA API Key:", echo_mode=QLineEdit.EchoMode.Password)
         add_line_edit("HOTKEY", "Capture Hotkey:", default="f9")
         add_combo("SMART_MODE", "Smart Mode:", ["llm", "heuristic"], "llm")
         add_combo("PASTE_MODE", "Paste Mode:", ["delta", "full"], "delta")

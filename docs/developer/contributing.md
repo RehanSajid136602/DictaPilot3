@@ -39,7 +39,7 @@ pip install -r requirements-dev.txt  # Development dependencies
 
 ```bash
 cp .env.example .env
-# Edit .env and add your GROQ_API_KEY
+# Edit .env and add your NVIDIA_API_KEY
 ```
 
 5. **Run tests:**
@@ -136,14 +136,14 @@ Follow [PEP 8](https://pep8.org/) with these specifics:
 ```python
 # Good
 def transcribe_audio(audio_data: np.ndarray, sample_rate: int = 16000) -> str:
-    """Transcribe audio using Groq API."""
+    """Transcribe audio using NVIDIA NIM API."""
     if audio_data is None:
         raise ValueError("audio_data cannot be None")
     
-    client = get_groq_client()
+    client = get_nvidia_client()
     result = client.audio.transcriptions.create(
         file=audio_file,
-        model=GROQ_WHISPER_MODEL
+        model=NVIDIA_WHISPER_MODEL
     )
     return result.text
 
@@ -151,8 +151,8 @@ def transcribe_audio(audio_data: np.ndarray, sample_rate: int = 16000) -> str:
 def TranscribeAudio(audioData, sampleRate=16000):
     if audioData == None:
         raise ValueError("audioData cannot be None")
-    client=get_groq_client()
-    result=client.audio.transcriptions.create(file=audio_file,model=GROQ_WHISPER_MODEL)
+    client=get_nvidia_client()
+    result=client.audio.transcriptions.create(file=audio_file,model=NVIDIA_WHISPER_MODEL)
     return result.text
 ```
 
@@ -179,7 +179,7 @@ Use Google-style docstrings:
 ```python
 def transcribe_audio(audio_data: np.ndarray, sample_rate: int = 16000) -> str:
     """
-    Transcribe audio using Groq Whisper API.
+    Transcribe audio using NVIDIA NIM Whisper API.
     
     Args:
         audio_data: numpy array of audio samples
@@ -197,8 +197,7 @@ def transcribe_audio(audio_data: np.ndarray, sample_rate: int = 16000) -> str:
         >>> text = transcribe_audio(audio)
         >>> print(text)
         "Hello world"
-    """
-```
+    ```
 
 ### Code Organization
 
@@ -216,7 +215,7 @@ from pathlib import Path
 
 # Third-party imports
 import numpy as np
-from groq import Groq
+from openai import OpenAI
 
 # Local imports
 from .config import load_config
@@ -319,11 +318,11 @@ def test_full_dictation_flow():
 ```python
 from unittest.mock import patch, MagicMock
 
-@patch('transcriber.Groq')
-def test_transcribe_with_mock(mock_groq):
+@patch('transcriber.OpenAI')
+def test_transcribe_with_mock(mock_openai):
     mock_client = MagicMock()
     mock_client.audio.transcriptions.create.return_value.text = "test"
-    mock_groq.return_value = mock_client
+    mock_openai.return_value = mock_client
     
     result = transcribe_audio(np.zeros(16000))
     assert result == "test"
@@ -535,7 +534,7 @@ pytest -v tests/test_smart_editor.py::test_delete_command
 **API errors:**
 ```bash
 # Check API key
-python -c "import os; from dotenv import load_dotenv; load_dotenv(); print(os.getenv('GROQ_API_KEY'))"
+python -c "import os; from dotenv import load_dotenv; load_dotenv(); print(os.getenv('NVIDIA_API_KEY'))"
 ```
 
 ## Release Process

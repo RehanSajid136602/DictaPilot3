@@ -26,7 +26,7 @@ Before using these scripts:
    - Windows: `setup\setup_windows.bat`
    - Linux: `./setup/setup_linux.sh`
    - macOS: `./setup/setup_macos.command`
-3. Add `GROQ_API_KEY` in `.env`
+3. Add `NVIDIA_API_KEY` in `.env`
 
 USAGE
 -----

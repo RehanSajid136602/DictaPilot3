@@ -15,7 +15,7 @@
 
 - [x] 3.1 Create `streaming_transcriber.py` module with `StreamingTranscriber` class
 - [x] 3.2 Implement worker thread for async chunk transcription
-- [x] 3.3 Add chunk transcription with Groq API integration
+- [x] 3.3 Add chunk transcription with NVIDIA NIM API integration
 - [x] 3.4 Implement partial result callback mechanism
 - [x] 3.5 Add text assembly logic for merging overlapping chunk transcriptions
 - [x] 3.6 Implement error handling and retry logic for failed chunks
